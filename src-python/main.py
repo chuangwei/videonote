@@ -5,8 +5,19 @@ This service handles video processing tasks including downloading and analysis.
 
 import sys
 import socket
+import io
+import os
 from contextlib import asynccontextmanager
 from typing import Dict, Optional
+
+# Fix for Windows output buffering/encoding issues
+if sys.platform.startswith('win'):
+    # Force utf-8 encoding for stdout/stderr to avoid cp1252 encoding issues
+    if sys.stdout:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+    if sys.stderr:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
+
 
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException
@@ -255,7 +266,7 @@ async def get_download_status(task_id: str):
 def find_free_port() -> int:
     """Find a free port on the system."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
+        s.bind(('127.0.0.1', 0))
         s.listen(1)
         port = s.getsockname()[1]
     return port
