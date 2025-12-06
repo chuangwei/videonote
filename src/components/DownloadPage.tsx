@@ -16,6 +16,8 @@ interface DownloadTask {
   progress: number;
   filePath?: string;
   title?: string;
+  speed?: string;
+  eta?: string;
 }
 
 export function DownloadPage() {
@@ -62,11 +64,14 @@ export function DownloadPage() {
             title: status.title,
           });
         } else {
-          // 仍在下载，更新消息
+          // 仍在下载，更新消息和进度
+          const progressData = status.progress;
           setDownloadTask({
             ...downloadTask,
             message: status.message,
-            progress: downloadTask.progress + 5, // 暂时使用模拟进度
+            progress: progressData ? progressData.percent : downloadTask.progress,
+            speed: progressData ? progressData.speed : undefined,
+            eta: progressData ? progressData.eta : undefined,
           });
         }
       } catch (error) {
@@ -77,7 +82,7 @@ export function DownloadPage() {
           message: "无法检查下载状态",
         });
       }
-    }, 2000);
+    }, 1000); // 缩短轮询间隔以获得更流畅的进度
 
     return () => clearInterval(intervalId);
   }, [downloadTask]);
@@ -123,7 +128,7 @@ export function DownloadPage() {
           savePath,
           status: "downloading",
           message: response.message,
-          progress: 10,
+          progress: 0,
         });
       } else {
         setDownloadTask({
@@ -263,11 +268,29 @@ export function DownloadPage() {
                   <div className="p-1.5 bg-indigo-100 rounded-full animate-pulse">
                     <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
                   </div>
-                  <span className="font-semibold text-slate-700">下载中...</span>
+                  <span className="font-semibold text-slate-700">{downloadTask.message}</span>
                 </div>
-                <span className="text-slate-500 font-medium">{downloadTask.message}</span>
+                <span className="text-slate-500 font-medium flex items-center gap-3">
+                  {downloadTask.speed && (
+                    <span className="text-indigo-600/80 font-mono bg-indigo-50 px-2 py-0.5 rounded text-xs">
+                      {downloadTask.speed}
+                    </span>
+                  )}
+                  {downloadTask.eta && (
+                    <span className="text-slate-400 text-xs">
+                      剩余: {downloadTask.eta}
+                    </span>
+                  )}
+                </span>
               </div>
-              <Progress value={Math.min(downloadTask.progress, 95)} className="h-2.5 rounded-full bg-slate-100" />
+              <div className="space-y-1.5">
+                 <Progress value={Math.min(downloadTask.progress || 0, 99)} className="h-2.5 rounded-full bg-slate-200/50" />
+                 <div className="text-right">
+                   <span className="text-xs font-semibold text-indigo-600 bg-indigo-50/50 px-2 py-0.5 rounded-full">
+                     {(downloadTask.progress || 0).toFixed(1)}%
+                   </span>
+                 </div>
+              </div>
             </div>
           )}
 

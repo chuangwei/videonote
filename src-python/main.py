@@ -25,7 +25,7 @@ class StatusResponse(BaseModel):
 class DownloadRequest(BaseModel):
     url: str
     save_path: str
-    format_preference: Optional[str] = "best"
+    format_preference: Optional[str] = None
 
 
 class DownloadResponse(BaseModel):
@@ -36,6 +36,7 @@ class DownloadResponse(BaseModel):
     title: Optional[str] = None
     duration: Optional[float] = None
     thumbnail: Optional[str] = None
+    progress: Optional[Dict] = None
 
 
 # Application lifespan context manager
@@ -112,7 +113,7 @@ def progress_callback_factory(task_id: str):
     return callback
 
 
-def download_task(task_id: str, url: str, save_path: str, format_preference: str):
+def download_task(task_id: str, url: str, save_path: str, format_preference: Optional[str]):
     """
     Background task to download a video.
 
@@ -137,6 +138,7 @@ def download_task(task_id: str, url: str, save_path: str, format_preference: str
             save_path=save_path,
             progress_callback=callback,
             ffmpeg_location=None,  # Will auto-detect
+            format_preference=format_preference,
         )
 
         # Update task with result
@@ -246,6 +248,7 @@ async def get_download_status(task_id: str):
             success=True,
             message=f"Download status: {task['status']}",
             task_id=task_id,
+            progress=task.get("progress")
         )
 
 
@@ -260,8 +263,14 @@ def find_free_port() -> int:
 
 def main():
     """Main entry point for the sidecar."""
-    # Use port 0 to get a random available port
-    port = find_free_port()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="VideoNote Python Sidecar")
+    parser.add_argument("--port", type=int, help="Port to run the server on", default=0)
+    args = parser.parse_args()
+
+    # Use specified port or find a free one
+    port = args.port if args.port != 0 else find_free_port()
 
     # Print the port to stdout so Tauri can capture it
     # This is the critical line that Tauri will parse

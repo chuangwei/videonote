@@ -43,17 +43,29 @@ class VideoDownloader:
 
     def _find_ffmpeg(self) -> Optional[str]:
         """
-        Find ffmpeg in system PATH.
+        Find ffmpeg in system PATH or PyInstaller temporary directory.
 
         Returns:
             Path to ffmpeg or None if not found.
         """
+        # Check PyInstaller temporary directory first (if bundled)
+        if hasattr(sys, '_MEIPASS'):
+            ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg")
+            if os.path.exists(ffmpeg_path):
+                print(f"Found bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                return ffmpeg_path
+            # Windows check
+            if os.path.exists(ffmpeg_path + ".exe"):
+                print(f"Found bundled ffmpeg at: {ffmpeg_path}.exe", file=sys.stderr)
+                return ffmpeg_path + ".exe"
+
+        # Check system PATH
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
             print(f"Found ffmpeg at: {ffmpeg_path}", file=sys.stderr)
             return ffmpeg_path
         else:
-            print("Warning: ffmpeg not found in PATH", file=sys.stderr)
+            print("Warning: ffmpeg not found in PATH or bundle", file=sys.stderr)
             return None
 
     def _progress_hook(self, d: Dict[str, Any]) -> None:
@@ -116,7 +128,7 @@ class VideoDownloader:
         url: str,
         save_path: str,
         progress_callback: Optional[Callable[[DownloadProgress], None]] = None,
-        format_preference: str = "best",
+        format_preference: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Download a video from the given URL.
@@ -125,7 +137,7 @@ class VideoDownloader:
             url: Video URL to download
             save_path: Directory or file path to save the video
             progress_callback: Optional callback function for progress updates
-            format_preference: Video format preference (default: "best")
+            format_preference: Video format preference (default: None, which uses QuickTime compatible settings)
                 Options: "best", "worst", "bestvideo+bestaudio", etc.
 
         Returns:
@@ -148,6 +160,11 @@ class VideoDownloader:
             save_dir = save_dir.parent
         save_dir.mkdir(parents=True, exist_ok=True)
 
+        # Set default format preference if not provided
+        # We prioritize mp4/h264 for better compatibility (e.g. QuickTime)
+        if not format_preference or format_preference == "best":
+            format_preference = "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+
         # Configure yt-dlp options
         ydl_opts = {
             "format": format_preference,
@@ -156,6 +173,13 @@ class VideoDownloader:
             "quiet": False,
             "no_warnings": False,
             "extract_flat": False,
+            # Force output to mp4 container for better compatibility
+            "merge_output_format": "mp4",
+            # Ensure final output is mp4 even if source wasn't
+            "postprocessors": [{
+                "key": "FFmpegVideoConvertor",
+                "preferedformat": "mp4",
+            }],
         }
 
         # Add ffmpeg location if available
@@ -219,6 +243,7 @@ def download_video(
     save_path: str,
     progress_callback: Optional[Callable[[DownloadProgress], None]] = None,
     ffmpeg_location: Optional[str] = None,
+    format_preference: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Convenience function to download a video.
@@ -228,9 +253,10 @@ def download_video(
         save_path: Directory or file path to save the video
         progress_callback: Optional callback function for progress updates
         ffmpeg_location: Optional path to ffmpeg binary
+        format_preference: Video format preference
 
     Returns:
         Dict containing download results
     """
     downloader = VideoDownloader(ffmpeg_location=ffmpeg_location)
-    return downloader.download_video(url, save_path, progress_callback)
+    return downloader.download_video(url, save_path, progress_callback, format_preference)

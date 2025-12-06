@@ -157,6 +157,13 @@ class ApiClient {
       title?: string;
       duration?: number;
       thumbnail?: string;
+      progress?: {
+        status: string;
+        percent: number;
+        speed: string;
+        eta: string;
+        filename: string;
+      };
     }>(`/api/download/${taskId}`);
   }
 }

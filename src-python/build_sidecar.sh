@@ -56,6 +56,14 @@ BINARY_NAME="vn-sidecar-$TARGET"
 echo "Target binary name: $BINARY_NAME"
 echo ""
 
+# Find ffmpeg
+FFMPEG_PATH=$(which ffmpeg)
+if [ -z "$FFMPEG_PATH" ]; then
+    echo "Error: ffmpeg not found in PATH. Please install ffmpeg."
+    exit 1
+fi
+echo "Found ffmpeg at: $FFMPEG_PATH"
+
 # Clean previous builds
 echo "Cleaning previous builds..."
 rm -rf "$SCRIPT_DIR/build" "$SCRIPT_DIR/dist"
@@ -82,6 +90,7 @@ pyinstaller \
     --name "$BINARY_NAME" \
     --clean \
     --noconfirm \
+    --add-binary "$FFMPEG_PATH:." \
     --hidden-import=uvicorn.logging \
     --hidden-import=uvicorn.loops \
     --hidden-import=uvicorn.loops.auto \
