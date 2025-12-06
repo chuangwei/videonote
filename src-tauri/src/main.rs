@@ -81,6 +81,7 @@ fn main() {
                                 }
                                 tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
                                     eprintln!("Sidecar terminated with code: {:?}", payload.code);
+                                    let _ = handle.emit("sidecar-terminated", payload.code);
                                     break;
                                 }
                                 _ => {}
