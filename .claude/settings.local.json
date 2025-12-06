@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create tauri-app@latest -- --name videonote --template react-ts --manager npm --yes)",
+      "Bash(npm create tauri-app@latest)",
+      "Bash(npm init -y)",
+      "Bash(npm install:*)",
+      "Bash(sudo chown:*)",
+      "Bash(mkdir:*)",
+      "Bash(python3 -m venv:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

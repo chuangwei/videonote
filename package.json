@@ -1,0 +1,40 @@
+{
+  "name": "videonote",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.17",
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/cli": "^2.9.5",
+    "@tauri-apps/plugin-dialog": "^2.4.2",
+    "autoprefixer": "^10.4.22",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.555.0",
+    "postcss": "^8.5.6",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.17"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6"
+  }
+}
