@@ -1,4 +1,5 @@
-import { invoke, listen } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type Event } from "@tauri-apps/api/event";
 
 /**
  * API Client for communicating with the Python sidecar
@@ -19,7 +20,7 @@ class ApiClient {
   private async initializePort(): Promise<number> {
     try {
       // Listen for sidecar-port event
-      const unlisten = await listen<number>("sidecar-port", (event) => {
+      await listen<number>("sidecar-port", (event: Event<number>) => {
         this.port = event.payload;
         console.log("Received sidecar port from event:", this.port);
       });
