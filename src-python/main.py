@@ -282,12 +282,12 @@ def main():
     import time
 
     parser = argparse.ArgumentParser(description="VideoNote Python Sidecar")
-    parser.add_argument("--port", type=int, help="Port to run the server on", default=0)
+    parser.add_argument("--port", type=int, help="Port to run the server on", default=8118)
     args = parser.parse_args()
 
     try:
-        # Use specified port or find a free one
-        port = args.port if args.port != 0 else find_free_port()
+        # Use specified port (default: 8118)
+        port = args.port
 
         # Print diagnostic info to stderr
         print(f"[INIT] Python version: {sys.version}", file=sys.stderr, flush=True)

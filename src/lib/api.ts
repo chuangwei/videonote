@@ -1,131 +1,27 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-
 /**
  * API Client for communicating with the Python sidecar
  */
 class ApiClient {
-  private port: number | null = null;
-  private baseUrl: string | null = null;
-  private portPromise: Promise<number> | null = null;
+  // Fixed port for Python sidecar
+  private readonly port: number = 8118;
+  private readonly baseUrl: string = `http://127.0.0.1:${this.port}`;
 
   constructor() {
-    this.initializePort();
-  }
-
-  /**
-   * Initialize the port by listening to the sidecar-port event and invoking get_sidecar_port
-   */
-  private initializePort() {
-    this.portPromise = new Promise((resolve, reject) => {
-      let resolved = false;
-
-      // Listen for sidecar error events
-      listen<string>("sidecar-error", (event) => {
-        if (!resolved) {
-          console.error("Sidecar error event received:", event.payload);
-          resolved = true;
-          reject(new Error(`Sidecar failed to start: ${event.payload}`));
-        }
-      });
-
-      // Listen for sidecar termination events
-      listen<number | null>("sidecar-terminated", (event) => {
-        if (!resolved) {
-          console.error("Sidecar terminated unexpectedly with code:", event.payload);
-          resolved = true;
-          reject(new Error(`Sidecar terminated with exit code: ${event.payload}`));
-        }
-      });
-
-      // First, try to get the port via invoke (if already set)
-      invoke<number>("get_sidecar_port")
-        .then((port) => {
-          if (!resolved) {
-            console.log("Got sidecar port from invoke:", port);
-            resolved = true;
-            this.setPort(port);
-            resolve(port);
-          }
-        })
-        .catch((error) => {
-          console.log("Port not yet available via invoke, listening for event:", error);
-
-          // Listen for the sidecar-port event
-          listen<number>("sidecar-port", (event) => {
-            if (!resolved) {
-              console.log("Received sidecar-port event:", event.payload);
-              resolved = true;
-              this.setPort(event.payload);
-              resolve(event.payload);
-            }
-          });
-
-          // Also keep polling invoke in case we missed the event
-          const pollInterval = setInterval(() => {
-            invoke<number>("get_sidecar_port")
-              .then((port) => {
-                if (!resolved) {
-                  clearInterval(pollInterval);
-                  console.log("Got sidecar port from polling:", port);
-                  resolved = true;
-                  this.setPort(port);
-                  resolve(port);
-                }
-              })
-              .catch(() => {
-                // Port not ready yet, continue polling
-              });
-          }, 500);
-
-          // Timeout after 60 seconds (Windows needs more time)
-          setTimeout(() => {
-            clearInterval(pollInterval);
-            if (!resolved) {
-              resolved = true;
-              reject(new Error("应用初始化超时。请尝试重启应用。如果问题持续，请联系技术支持。"));
-            }
-          }, 60000);
-        });
-    });
-  }
-
-  /**
-   * Set the port and update the base URL
-   */
-  private setPort(port: number) {
-    this.port = port;
-    this.baseUrl = `http://127.0.0.1:${port}`;
     console.log("API baseUrl set to:", this.baseUrl);
-  }
-
-  /**
-   * Wait for the port to be available
-   */
-  async waitForPort(): Promise<number> {
-    if (this.port !== null) {
-      return this.port;
-    }
-    return this.portPromise!;
   }
 
   /**
    * Get the base URL for the API
    */
-  async getBaseUrl(): Promise<string> {
-    if (this.baseUrl !== null) {
-      return this.baseUrl;
-    }
-    await this.waitForPort();
-    return this.baseUrl!;
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   /**
    * Make a GET request to the Python API
    */
   async get<T>(path: string): Promise<T> {
-    const baseUrl = await this.getBaseUrl();
-    const url = `${baseUrl}${path}`;
+    const url = `${this.baseUrl}${path}`;
 
     console.log(`Making GET request to: ${url}`);
 
@@ -164,8 +60,7 @@ class ApiClient {
    * Make a POST request to the Python API
    */
   async post<T>(path: string, data: any): Promise<T> {
-    const baseUrl = await this.getBaseUrl();
-    const url = `${baseUrl}${path}`;
+    const url = `${this.baseUrl}${path}`;
 
     console.log(`Making POST request to: ${url}`);
 
