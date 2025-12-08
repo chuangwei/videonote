@@ -25,6 +25,7 @@ export function DownloadPage() {
   const [savePath, setSavePath] = useState("");
   const [downloadTask, setDownloadTask] = useState<DownloadTask | null>(null);
   const [apiReady, setApiReady] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // 持续检查 API 是否准备就绪（避免只尝试一次后停滞）
   useEffect(() => {
@@ -36,11 +37,16 @@ export function DownloadPage() {
         if (!stopped) {
           console.log("API 健康检查通过");
           setApiReady(true);
+          setApiError(null);
         }
       } catch (error) {
         if (!stopped) {
           console.error("API 健康检查失败:", error);
           setApiReady(false);
+          // Only set error message if it's been a while (to avoid flashing errors during startup)
+          if (error instanceof Error) {
+            setApiError(error.message);
+          }
         }
       }
     };
@@ -198,10 +204,16 @@ export function DownloadPage() {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center justify-between px-2">
             <span className="text-xl text-slate-800 font-semibold">新任务</span>
-            {!apiReady && (
+            {!apiReady && !apiError && (
               <span className="text-xs font-medium px-3 py-1.5 bg-amber-100/80 text-amber-700 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-sm border border-amber-200/50">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 服务启动中...
+              </span>
+            )}
+            {!apiReady && apiError && (
+              <span className="text-xs font-medium px-3 py-1.5 bg-red-100/80 text-red-700 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-sm border border-red-200/50">
+                <XCircle className="w-3.5 h-3.5" />
+                服务启动失败
               </span>
             )}
           </CardTitle>
@@ -210,6 +222,28 @@ export function DownloadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8 p-8 pt-2">
+          {/* 错误提示 */}
+          {apiError && (
+            <div className="bg-red-50/60 border border-red-200/60 rounded-2xl p-4 backdrop-blur-sm shadow-sm">
+              <div className="flex gap-3">
+                <div className="mt-0.5 bg-red-100 p-1.5 rounded-full h-fit shadow-sm">
+                  <XCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-red-800 mb-1">
+                    服务启动失败
+                  </h4>
+                  <p className="text-xs text-red-600 font-medium">
+                    {apiError}
+                  </p>
+                  <p className="text-xs text-red-500 mt-2">
+                    请检查应用日志或尝试重启应用
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 链接输入 */}
           <div className="space-y-3 group">
             <label className="text-sm font-semibold text-slate-700 ml-1 transition-colors group-focus-within:text-indigo-600">视频链接</label>
