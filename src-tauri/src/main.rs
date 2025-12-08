@@ -78,57 +78,70 @@ fn main() {
             // Spawn the Python sidecar
             tauri::async_runtime::spawn(async move {
                 info!("Starting Python sidecar...");
+                info!("Platform: {}", std::env::consts::OS);
 
                 let shell = handle.shell();
 
                 // Create sidecar command
+                info!("Creating sidecar command for 'vn-sidecar'");
                 let sidecar_command = shell.sidecar("vn-sidecar");
 
                 match sidecar_command {
                     Ok(command) => {
+                        info!("Sidecar command created successfully, spawning process...");
                         // Spawn the sidecar process
-                        let (mut rx, _child) = command
-                            .spawn()
-                            .expect("Failed to spawn Python sidecar");
+                        match command.spawn() {
+                            Ok((mut rx, _child)) => {
+                                info!("Python sidecar process spawned successfully");
 
-                        // Listen to stdout to capture the port
-                        while let Some(event) = rx.recv().await {
-                            match event {
-                                tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
-                                    let line_str = String::from_utf8_lossy(&line);
-                                    info!("Sidecar stdout: {}", line_str);
+                                // Listen to stdout to capture the port
+                                while let Some(event) = rx.recv().await {
+                                    match event {
+                                        tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                                            let line_str = String::from_utf8_lossy(&line);
+                                            info!("Sidecar stdout: {}", line_str);
 
-                                    // Extract port from "SERVER_PORT=12345" format
-                                    if line_str.contains("SERVER_PORT=") {
-                                        if let Some(port_str) = line_str.split('=').nth(1) {
-                                            if let Ok(port) = port_str.trim().parse::<u16>() {
-                                                info!("Extracted sidecar port: {}", port);
+                                            // Extract port from "SERVER_PORT=12345" format
+                                            if line_str.contains("SERVER_PORT=") {
+                                                if let Some(port_str) = line_str.split('=').nth(1) {
+                                                    if let Ok(port) = port_str.trim().parse::<u16>() {
+                                                        info!("Extracted sidecar port: {}", port);
 
-                                                // Store the port in state
-                                                let mut port_lock = port_state.lock().unwrap();
-                                                *port_lock = Some(port);
+                                                        // Store the port in state
+                                                        let mut port_lock = port_state.lock().unwrap();
+                                                        *port_lock = Some(port);
 
-                                                // Emit event to frontend
-                                                let _ = handle.emit("sidecar-port", port);
+                                                        // Emit event to frontend
+                                                        let _ = handle.emit("sidecar-port", port);
 
-                                                info!("Sidecar port stored and emitted to frontend");
+                                                        info!("Sidecar port stored and emitted to frontend");
+                                                    } else {
+                                                        error!("Failed to parse port from: {}", port_str.trim());
+                                                    }
+                                                } else {
+                                                    error!("Failed to extract port from line: {}", line_str);
+                                                }
                                             }
                                         }
+                                        tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                                            let line_str = String::from_utf8_lossy(&line);
+                                            error!("Sidecar stderr: {}", line_str);
+                                        }
+                                        tauri_plugin_shell::process::CommandEvent::Error(err) => {
+                                            error!("Sidecar error: {}", err);
+                                        }
+                                        tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
+                                            error!("Sidecar terminated with code: {:?}", payload.code);
+                                            let _ = handle.emit("sidecar-terminated", payload.code);
+                                            break;
+                                        }
+                                        _ => {}
                                     }
                                 }
-                                tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
-                                    let line_str = String::from_utf8_lossy(&line);
-                                    error!("Sidecar stderr: {}", line_str);
-                                }
-                                tauri_plugin_shell::process::CommandEvent::Error(err) => {
-                                    error!("Sidecar error: {}", err);
-                                }
-                                tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
-                                    error!("Sidecar terminated with code: {:?}", payload.code);
-                                    let _ = handle.emit("sidecar-terminated", payload.code);
-                                    break;
-                                }
-                                _ => {}
+                            }
+                            Err(e) => {
+                                error!("Failed to spawn Python sidecar: {}", e);
+                                let _ = handle.emit("sidecar-error", e.to_string());
                             }
                         }
                     }
@@ -136,6 +149,7 @@ fn main() {
                         error!("Failed to create sidecar command: {}", e);
                         error!("Note: For development, you can run the Python server manually:");
                         error!("  cd src-python && ./run.sh");
+                        let _ = handle.emit("sidecar-error", e.to_string());
                     }
                 }
             });

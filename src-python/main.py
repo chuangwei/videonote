@@ -280,23 +280,39 @@ def main():
     parser.add_argument("--port", type=int, help="Port to run the server on", default=0)
     args = parser.parse_args()
 
-    # Use specified port or find a free one
-    port = args.port if args.port != 0 else find_free_port()
+    try:
+        # Use specified port or find a free one
+        port = args.port if args.port != 0 else find_free_port()
 
-    # Print the port to stdout so Tauri can capture it
-    # This is the critical line that Tauri will parse
-    print(f"SERVER_PORT={port}", flush=True)
+        # Print diagnostic info to stderr
+        print(f"[INIT] Python version: {sys.version}", file=sys.stderr, flush=True)
+        print(f"[INIT] Platform: {sys.platform}", file=sys.stderr, flush=True)
+        print(f"[INIT] Working directory: {os.getcwd()}", file=sys.stderr, flush=True)
+        print(f"[INIT] Selected port: {port}", file=sys.stderr, flush=True)
 
-    # Additional logging to stderr (won't interfere with port detection)
-    print(f"Starting Python Sidecar on port {port}", file=sys.stderr)
+        # Print the port to stdout so Tauri can capture it
+        # This is the critical line that Tauri will parse
+        # MUST be flushed immediately and be on its own line
+        print(f"SERVER_PORT={port}", flush=True)
 
-    # Start the uvicorn server
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=port,
-        log_level="info",
-    )
+        # Double-flush to ensure output on Windows
+        sys.stdout.flush()
+
+        # Additional logging to stderr (won't interfere with port detection)
+        print(f"[START] Starting Python Sidecar on 127.0.0.1:{port}", file=sys.stderr, flush=True)
+
+        # Start the uvicorn server
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=port,
+            log_level="info",
+        )
+    except Exception as e:
+        print(f"[ERROR] Failed to start sidecar: {e}", file=sys.stderr, flush=True)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
