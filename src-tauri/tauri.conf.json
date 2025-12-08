@@ -15,8 +15,7 @@
         "width": 1200,
         "height": 800,
         "resizable": true,
-        "fullscreen": false,
-        "devTools": true
+        "fullscreen": false
       }
     ],
     "security": {
@@ -43,9 +42,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [],
-    "externalBin": [
-      "binaries/vn-sidecar"
-    ]
+    "resources": []
   }
 }
