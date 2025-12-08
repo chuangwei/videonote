@@ -13,6 +13,7 @@
     "shell:allow-stdin-write",
     "dialog:default",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "log:default"
   ]
 }
