@@ -4,6 +4,7 @@
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_shell::ShellExt;
+use log::{info, error};
 
 // State to store the Python sidecar port
 #[derive(Default)]
@@ -21,8 +22,51 @@ fn get_sidecar_port(state: State<SidecarState>) -> Result<u16, String> {
     }
 }
 
+#[tauri::command]
+async fn get_log_contents(app: tauri::AppHandle) -> Result<String, String> {
+    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    if !log_dir.exists() {
+        return Ok("Log directory not found.".to_string());
+    }
+
+    let mut files = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&log_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.extension().map_or(false, |ext| ext == "log") {
+                    if let Ok(metadata) = std::fs::metadata(&path) {
+                        if let Ok(modified) = metadata.modified() {
+                            files.push((path, modified));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    files.sort_by(|a, b| a.1.cmp(&b.1));
+
+    let mut content = String::new();
+    for (path, _) in files {
+        content.push_str(&format!("=== {} ===\n", path.file_name().unwrap_or_default().to_string_lossy()));
+        if let Ok(c) = std::fs::read_to_string(&path) {
+            content.push_str(&c);
+        }
+        content.push_str("\n\n");
+    }
+
+    if content.is_empty() {
+        Ok("No logs found.".to_string())
+    } else {
+        Ok(content)
+    }
+}
+
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(SidecarState::default())
@@ -33,7 +77,7 @@ fn main() {
 
             // Spawn the Python sidecar
             tauri::async_runtime::spawn(async move {
-                println!("Starting Python sidecar...");
+                info!("Starting Python sidecar...");
 
                 let shell = handle.shell();
 
@@ -52,13 +96,13 @@ fn main() {
                             match event {
                                 tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
                                     let line_str = String::from_utf8_lossy(&line);
-                                    println!("Sidecar stdout: {}", line_str);
+                                    info!("Sidecar stdout: {}", line_str);
 
                                     // Extract port from "SERVER_PORT=12345" format
                                     if line_str.contains("SERVER_PORT=") {
                                         if let Some(port_str) = line_str.split('=').nth(1) {
                                             if let Ok(port) = port_str.trim().parse::<u16>() {
-                                                println!("Extracted sidecar port: {}", port);
+                                                info!("Extracted sidecar port: {}", port);
 
                                                 // Store the port in state
                                                 let mut port_lock = port_state.lock().unwrap();
@@ -67,20 +111,20 @@ fn main() {
                                                 // Emit event to frontend
                                                 let _ = handle.emit("sidecar-port", port);
 
-                                                println!("Sidecar port stored and emitted to frontend");
+                                                info!("Sidecar port stored and emitted to frontend");
                                             }
                                         }
                                     }
                                 }
                                 tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
                                     let line_str = String::from_utf8_lossy(&line);
-                                    eprintln!("Sidecar stderr: {}", line_str);
+                                    error!("Sidecar stderr: {}", line_str);
                                 }
                                 tauri_plugin_shell::process::CommandEvent::Error(err) => {
-                                    eprintln!("Sidecar error: {}", err);
+                                    error!("Sidecar error: {}", err);
                                 }
                                 tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
-                                    eprintln!("Sidecar terminated with code: {:?}", payload.code);
+                                    error!("Sidecar terminated with code: {:?}", payload.code);
                                     let _ = handle.emit("sidecar-terminated", payload.code);
                                     break;
                                 }
@@ -89,16 +133,16 @@ fn main() {
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to create sidecar command: {}", e);
-                        eprintln!("Note: For development, you can run the Python server manually:");
-                        eprintln!("  cd src-python && ./run.sh");
+                        error!("Failed to create sidecar command: {}", e);
+                        error!("Note: For development, you can run the Python server manually:");
+                        error!("  cd src-python && ./run.sh");
                     }
                 }
             });
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_sidecar_port])
+        .invoke_handler(tauri::generate_handler![get_sidecar_port, get_log_contents])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
