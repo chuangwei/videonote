@@ -22,6 +22,12 @@ fn get_sidecar_port(state: State<SidecarState>) -> Result<u16, String> {
     }
 }
 
+// Command to open DevTools
+#[tauri::command]
+fn open_devtools(window: tauri::Window) {
+    window.open_devtools();
+}
+
 #[tauri::command]
 async fn get_log_contents(app: tauri::AppHandle) -> Result<String, String> {
     let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
@@ -74,6 +80,15 @@ fn main() {
             let handle = app.handle().clone();
             let state: State<SidecarState> = handle.state();
             let port_state = state.port.clone();
+
+            // Register global shortcut for DevTools (Cmd+Shift+D on macOS, Ctrl+Shift+D on Windows/Linux)
+            let window = app.get_webview_window("main").unwrap();
+            let window_clone = window.clone();
+            
+            // Add keyboard event listener for DevTools shortcut
+            window.listen("devtools-toggle", move |_| {
+                window_clone.open_devtools();
+            });
 
             // Spawn the Python sidecar
             tauri::async_runtime::spawn(async move {
@@ -165,7 +180,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_sidecar_port, get_log_contents])
+        .invoke_handler(tauri::generate_handler![get_sidecar_port, get_log_contents, open_devtools])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
