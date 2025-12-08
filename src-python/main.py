@@ -18,6 +18,9 @@ if sys.platform.startswith('win'):
     if sys.stderr:
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
 
+    # Disable Windows-specific output buffering
+    os.environ['PYTHONUNBUFFERED'] = '1'
+
 
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException
@@ -275,6 +278,8 @@ def find_free_port() -> int:
 def main():
     """Main entry point for the sidecar."""
     import argparse
+    import threading
+    import time
 
     parser = argparse.ArgumentParser(description="VideoNote Python Sidecar")
     parser.add_argument("--port", type=int, help="Port to run the server on", default=0)
@@ -290,13 +295,56 @@ def main():
         print(f"[INIT] Working directory: {os.getcwd()}", file=sys.stderr, flush=True)
         print(f"[INIT] Selected port: {port}", file=sys.stderr, flush=True)
 
-        # Print the port to stdout so Tauri can capture it
-        # This is the critical line that Tauri will parse
-        # MUST be flushed immediately and be on its own line
-        print(f"SERVER_PORT={port}", flush=True)
+        # Flag to track when server is ready
+        server_ready = threading.Event()
 
-        # Double-flush to ensure output on Windows
-        sys.stdout.flush()
+        def wait_and_announce():
+            """Wait for server to be ready, then announce the port."""
+            # Wait a bit longer on Windows for uvicorn to fully initialize
+            wait_time = 3.0 if sys.platform.startswith('win') else 1.5
+            print(f"[INFO] Waiting {wait_time}s for server initialization...", file=sys.stderr, flush=True)
+            time.sleep(wait_time)
+
+            # Try to connect to verify server is ready
+            max_attempts = 20  # More attempts for Windows
+            for attempt in range(max_attempts):
+                try:
+                    # Explicitly use IPv4 socket
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.settimeout(2)
+                        result = s.connect_ex(('127.0.0.1', port))
+                        if result == 0:
+                            # Server is accepting connections
+                            print(f"[INFO] Server is ready on port {port}", file=sys.stderr, flush=True)
+
+                            # Print the port to stdout so Tauri can capture it
+                            # CRITICAL: This must be on its own line and immediately flushed
+                            print(f"SERVER_PORT={port}", flush=True)
+
+                            # Triple flush for Windows reliability
+                            sys.stdout.flush()
+                            if sys.platform.startswith('win'):
+                                sys.stdout.flush()
+                                sys.stdout.flush()
+
+                            server_ready.set()
+                            print(f"[INFO] Port announcement complete", file=sys.stderr, flush=True)
+                            return
+                except Exception as e:
+                    if attempt % 5 == 0:  # Only log every 5th attempt to reduce noise
+                        print(f"[DEBUG] Connection attempt {attempt + 1}/{max_attempts}: {e}", file=sys.stderr, flush=True)
+
+                time.sleep(0.5)
+
+            # If we get here, server didn't start properly but announce anyway
+            print(f"[WARN] Could not verify server readiness after {max_attempts} attempts ({max_attempts * 0.5:.1f}s)", file=sys.stderr, flush=True)
+            print(f"[WARN] Announcing port anyway - frontend will continue retrying", file=sys.stderr, flush=True)
+            print(f"SERVER_PORT={port}", flush=True)
+            sys.stdout.flush()
+
+        # Start the announcement thread
+        announce_thread = threading.Thread(target=wait_and_announce, daemon=True)
+        announce_thread.start()
 
         # Additional logging to stderr (won't interfere with port detection)
         print(f"[START] Starting Python Sidecar on 127.0.0.1:{port}", file=sys.stderr, flush=True)

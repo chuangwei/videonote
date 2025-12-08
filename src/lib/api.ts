@@ -78,14 +78,14 @@ class ApiClient {
               });
           }, 500);
 
-          // Timeout after 30 seconds
+          // Timeout after 60 seconds (Windows needs more time)
           setTimeout(() => {
             clearInterval(pollInterval);
             if (!resolved) {
               resolved = true;
-              reject(new Error("Timeout waiting for sidecar to start (30s). Please check the application logs."));
+              reject(new Error("应用初始化超时。请尝试重启应用。如果问题持续，请联系技术支持。"));
             }
-          }, 30000);
+          }, 60000);
         });
     });
   }
@@ -125,13 +125,39 @@ class ApiClient {
    */
   async get<T>(path: string): Promise<T> {
     const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}${path}`);
+    const url = `${baseUrl}${path}`;
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+    console.log(`Making GET request to: ${url}`);
+
+    try {
+      // Add timeout for fetch request (especially important on Windows)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout per request
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        // Explicitly set mode for CORS
+        mode: 'cors',
+        // Add cache busting to avoid Windows caching issues
+        cache: 'no-cache',
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error(`Request to ${url} timed out after 10 seconds`);
+        }
+        throw new Error(`Failed to connect to ${url}: ${error.message}`);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   /**
@@ -139,27 +165,58 @@ class ApiClient {
    */
   async post<T>(path: string, data: any): Promise<T> {
     const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+    const url = `${baseUrl}${path}`;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API request failed: ${response.statusText} - ${errorText}`);
+    console.log(`Making POST request to: ${url}`);
+
+    try {
+      // Add timeout for fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${response.statusText} - ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error(`Request to ${url} timed out after 10 seconds`);
+        }
+        throw new Error(`Failed to connect to ${url}: ${error.message}`);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   /**
-   * Health check
+   * Health check with retry logic
    */
   async healthCheck() {
-    return this.get<{ status: string; message: string }>("/health");
+    try {
+      return await this.get<{ status: string; message: string }>("/health");
+    } catch (error) {
+      // Provide more detailed error information
+      if (error instanceof Error) {
+        throw new Error(`Health check failed: ${error.message}. Make sure the sidecar is running.`);
+      }
+      throw error;
+    }
   }
 
   /**

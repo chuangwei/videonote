@@ -26,10 +26,14 @@ export function DownloadPage() {
   const [downloadTask, setDownloadTask] = useState<DownloadTask | null>(null);
   const [apiReady, setApiReady] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // 持续检查 API 是否准备就绪（避免只尝试一次后停滞）
   useEffect(() => {
     let stopped = false;
+    let failureCount = 0;
+    let initialCheckDone = false;
 
     const checkHealth = async () => {
       try {
@@ -38,14 +42,32 @@ export function DownloadPage() {
           console.log("API 健康检查通过");
           setApiReady(true);
           setApiError(null);
+          setIsInitializing(false);
+          failureCount = 0;
         }
       } catch (error) {
         if (!stopped) {
           console.error("API 健康检查失败:", error);
+          failureCount++;
+
+          // 给予更长的初始化时间（前30秒不显示错误）
+          if (!initialCheckDone && failureCount < 15) {
+            console.log(`初始化中... (尝试 ${failureCount}/15)`);
+            return;
+          }
+
+          initialCheckDone = true;
           setApiReady(false);
-          // Only set error message if it's been a while (to avoid flashing errors during startup)
-          if (error instanceof Error) {
-            setApiError(error.message);
+          setIsInitializing(false);
+
+          // 只在多次失败后才显示错误
+          if (failureCount > 3) {
+            if (error instanceof Error) {
+              setApiError(error.message);
+            } else {
+              setApiError("服务连接失败，正在重试...");
+            }
+            setRetryCount(failureCount);
           }
         }
       }
@@ -204,16 +226,28 @@ export function DownloadPage() {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center justify-between px-2">
             <span className="text-xl text-slate-800 font-semibold">新任务</span>
-            {!apiReady && !apiError && (
+            {isInitializing && (
+              <span className="text-xs font-medium px-3 py-1.5 bg-blue-100/80 text-blue-700 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-sm border border-blue-200/50">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                正在初始化...
+              </span>
+            )}
+            {!isInitializing && !apiReady && !apiError && (
               <span className="text-xs font-medium px-3 py-1.5 bg-amber-100/80 text-amber-700 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-sm border border-amber-200/50">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                服务启动中...
+                连接中...
               </span>
             )}
             {!apiReady && apiError && (
               <span className="text-xs font-medium px-3 py-1.5 bg-red-100/80 text-red-700 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-sm border border-red-200/50">
                 <XCircle className="w-3.5 h-3.5" />
-                服务启动失败
+                连接失败
+              </span>
+            )}
+            {apiReady && (
+              <span className="text-xs font-medium px-3 py-1.5 bg-green-100/80 text-green-700 rounded-full flex items-center gap-1.5 shadow-sm backdrop-blur-sm border border-green-200/50">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                就绪
               </span>
             )}
           </CardTitle>
@@ -222,8 +256,27 @@ export function DownloadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8 p-8 pt-2">
+          {/* 初始化提示 */}
+          {isInitializing && (
+            <div className="bg-blue-50/60 border border-blue-200/60 rounded-2xl p-4 backdrop-blur-sm shadow-sm">
+              <div className="flex gap-3">
+                <div className="mt-0.5 bg-blue-100 p-1.5 rounded-full h-fit shadow-sm">
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-blue-800 mb-1">
+                    应用正在启动
+                  </h4>
+                  <p className="text-xs text-blue-600 font-medium">
+                    首次启动可能需要 10-30 秒，请稍候...
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 错误提示 */}
-          {apiError && (
+          {!isInitializing && apiError && (
             <div className="bg-red-50/60 border border-red-200/60 rounded-2xl p-4 backdrop-blur-sm shadow-sm">
               <div className="flex gap-3">
                 <div className="mt-0.5 bg-red-100 p-1.5 rounded-full h-fit shadow-sm">
@@ -231,13 +284,13 @@ export function DownloadPage() {
                 </div>
                 <div className="flex-1">
                   <h4 className="text-sm font-bold text-red-800 mb-1">
-                    服务启动失败
+                    连接失败 {retryCount > 0 && `(已重试 ${retryCount} 次)`}
                   </h4>
                   <p className="text-xs text-red-600 font-medium">
                     {apiError}
                   </p>
                   <p className="text-xs text-red-500 mt-2">
-                    请检查应用日志或尝试重启应用
+                    应用将继续自动重试连接。如果长时间无法连接，请尝试重启应用。
                   </p>
                 </div>
               </div>
