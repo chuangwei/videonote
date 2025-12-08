@@ -26,21 +26,33 @@ export function DownloadPage() {
   const [downloadTask, setDownloadTask] = useState<DownloadTask | null>(null);
   const [apiReady, setApiReady] = useState(false);
 
-  // 检查 API 是否准备就绪
+  // 持续检查 API 是否准备就绪（避免只尝试一次后停滞）
   useEffect(() => {
-    api
-      .healthCheck()
-      .then(() => {
-        console.log("API 健康检查通过");
-        setApiReady(true);
-      })
-      .catch((error) => {
-        console.error("API 健康检查失败:", error);
-        // 2秒后重试
-        setTimeout(() => {
-          api.healthCheck().then(() => setApiReady(true)).catch(console.error);
-        }, 2000);
-      });
+    let stopped = false;
+
+    const checkHealth = async () => {
+      try {
+        await api.healthCheck();
+        if (!stopped) {
+          console.log("API 健康检查通过");
+          setApiReady(true);
+        }
+      } catch (error) {
+        if (!stopped) {
+          console.error("API 健康检查失败:", error);
+          setApiReady(false);
+        }
+      }
+    };
+
+    // 立即检查一次，并每 2 秒轮询
+    checkHealth();
+    const intervalId = setInterval(checkHealth, 2000);
+
+    return () => {
+      stopped = true;
+      clearInterval(intervalId);
+    };
   }, []);
 
   // 轮询下载状态
