@@ -1,27 +1,64 @@
+import { invoke, listen } from "@tauri-apps/api/core";
+
 /**
  * API Client for communicating with the Python sidecar
  */
 class ApiClient {
-  // Fixed port for Python sidecar
-  private readonly port: number = 8118;
-  private readonly baseUrl: string = `http://127.0.0.1:${this.port}`;
+  // Dynamic port for Python sidecar (obtained from Tauri)
+  private port: number | null = null;
+  private portPromise: Promise<number>;
 
   constructor() {
-    console.log("API baseUrl set to:", this.baseUrl);
+    console.log("API Client initializing with dynamic port...");
+    this.portPromise = this.initializePort();
+  }
+
+  /**
+   * Initialize and get the dynamic port from Tauri
+   */
+  private async initializePort(): Promise<number> {
+    try {
+      // Listen for sidecar-port event
+      const unlisten = await listen<number>("sidecar-port", (event) => {
+        this.port = event.payload;
+        console.log("Received sidecar port from event:", this.port);
+      });
+
+      // Also try to get port via invoke (in case event was missed)
+      const maxAttempts = 30; // 30 seconds timeout
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const port = await invoke<number>("get_sidecar_port");
+          this.port = port;
+          console.log("Got sidecar port via invoke:", this.port);
+          return port;
+        } catch (error) {
+          // Port not ready yet, wait and retry
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      throw new Error("Failed to get sidecar port after 30 seconds");
+    } catch (error) {
+      console.error("Failed to initialize port:", error);
+      throw error;
+    }
   }
 
   /**
    * Get the base URL for the API
    */
-  getBaseUrl(): string {
-    return this.baseUrl;
+  async getBaseUrl(): Promise<string> {
+    const port = await this.portPromise;
+    return `http://127.0.0.1:${port}`;
   }
 
   /**
    * Make a GET request to the Python API
    */
   async get<T>(path: string): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const baseUrl = await this.getBaseUrl();
+    const url = `${baseUrl}${path}`;
 
     console.log(`Making GET request to: ${url}`);
 
@@ -60,7 +97,8 @@ class ApiClient {
    * Make a POST request to the Python API
    */
   async post<T>(path: string, data: any): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const baseUrl = await this.getBaseUrl();
+    const url = `${baseUrl}${path}`;
 
     console.log(`Making POST request to: ${url}`);
 

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Dynamic Port Assignment (2025-12-08)
+
+#### 🔄 从固定端口改为动态端口分配
+
+**改进内容**:
+将Python sidecar从固定端口8118改为系统自动分配的动态端口。
+
+**优势**:
+- ✅ 避免端口冲突 - 不再担心8118端口被占用
+- ✅ 支持多实例 - 可以同时运行多个VideoNote实例
+- ✅ 更灵活 - 系统自动选择可用端口
+- ✅ 更符合桌面应用最佳实践
+
+**技术实现**:
+1. Python使用 `find_free_port()` 获取系统分配的端口
+2. 端口通过stdout传递给Rust (格式: `SERVER_PORT=xxxxx`)
+3. 前端通过Tauri事件和invoke获取动态端口
+4. CSP配置允许所有localhost端口 (`http://127.0.0.1:*`)
+
+**影响的文件**:
+- `src-python/main.py` - 使用端口0启动
+- `src-tauri/src/main.rs` - 传递 `--port 0` 参数
+- `src/lib/api.ts` - 异步获取动态端口
+- `src-tauri/tauri.conf.json` - CSP通配符支持
+
+**API变化**:
+- `api.getBaseUrl()` 从同步改为异步
+- 其他API方法使用方式不变
+
+**详细说明**: 参见 [DYNAMIC_PORT_MIGRATION.md](DYNAMIC_PORT_MIGRATION.md)
+
 ### Fixed - Windows Deployment Issues (2025-12-08)
 
 #### 修复了误导性的ERROR日志 🔧

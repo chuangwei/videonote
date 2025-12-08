@@ -82,10 +82,10 @@ fn main() {
 
                 let shell = handle.shell();
 
-                // Create sidecar command with fixed port 8118
-                info!("Creating sidecar command for 'vn-sidecar' with port 8118");
+                // Create sidecar command with dynamic port (port 0 = auto-assign)
+                info!("Creating sidecar command for 'vn-sidecar' with dynamic port");
                 let sidecar_command = shell.sidecar("vn-sidecar")
-                    .map(|cmd| cmd.args(["--port", "8118"]));
+                    .map(|cmd| cmd.args(["--port", "0"]));
 
                 match sidecar_command {
                     Ok(command) => {

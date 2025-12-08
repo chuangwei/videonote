@@ -75,10 +75,11 @@ app = FastAPI(
 # Configure CORS to allow Tauri frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:1420", "tauri://localhost"],
+    allow_origins=["http://localhost:1420", "tauri://localhost", "http://localhost", "https://tauri.localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"^(http://localhost:\d+|tauri://.*)$",
 )
 
 
@@ -282,12 +283,15 @@ def main():
     import time
 
     parser = argparse.ArgumentParser(description="VideoNote Python Sidecar")
-    parser.add_argument("--port", type=int, help="Port to run the server on", default=8118)
+    parser.add_argument("--port", type=int, help="Port to run the server on (0 for auto-assign)", default=0)
     args = parser.parse_args()
 
     try:
-        # Use specified port (default: 8118)
-        port = args.port
+        # Use port 0 to let the system auto-assign a free port
+        if args.port == 0:
+            port = find_free_port()
+        else:
+            port = args.port
 
         # Print diagnostic info to stderr
         print(f"[INIT] Python version: {sys.version}", file=sys.stderr, flush=True)

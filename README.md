@@ -433,29 +433,52 @@ src-tauri/
 
 ### Development Mode:
 
-1. **Start Python backend (manual for now):**
+**方式一: 一体化启动(推荐)**
+```bash
+npm run tauri:dev
+```
+这会自动启动Python sidecar(使用动态端口)和前端。
+
+**方式二: 分离启动(用于调试)**
+
+1. **手动启动Python backend:**
    ```bash
    cd src-python
    ./run.sh
+   # 或指定端口: python main.py --port 8000
    ```
 
-2. **Start Tauri dev server:**
+2. **启动Tauri dev server:**
    ```bash
    npm run tauri:dev
    ```
 
-3. **Or use Vite only (for UI development):**
-   ```bash
-   npm run dev
-   ```
+**方式三: 仅前端开发**
+```bash
+npm run dev
+```
+
+### 端口配置
+
+- **动态端口(默认)**: Python sidecar自动选择可用端口
+- **固定端口(可选)**: 使用 `--port` 参数指定端口
+- **查看当前端口**: 查看应用日志中的 `Extracted sidecar port` 行
 
 ### Using the App:
 
-1. Enter a video URL (e.g., YouTube link)
-2. Click folder icon to select download location
-3. Click "Start Download" button
-4. Watch progress bar and status updates
-5. See success message with file path when complete
+1. 等待应用启动并显示"就绪"状态(通常10-30秒)
+2. 输入视频URL (例如: YouTube链接)
+3. 点击文件夹图标选择下载位置
+4. 点击"开始下载"按钮
+5. 查看进度条和状态更新
+6. 下载完成后会显示文件路径
+
+### 技术特性
+
+- **动态端口分配**: Python sidecar自动选择可用端口,避免端口冲突
+- **多实例支持**: 可以同时运行多个VideoNote实例
+- **自动重连**: 前端会自动重试连接后端
+- **智能日志**: 只有真正的错误才会标记为ERROR级别
 
 ## Windows Deployment - FIXED ✓
 
