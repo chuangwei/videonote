@@ -126,7 +126,15 @@ fn main() {
                                         }
                                         tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
                                             let line_str = String::from_utf8_lossy(&line);
-                                            error!("Sidecar stderr: {}", line_str);
+                                            // Python sidecar uses stderr for normal logging, not errors
+                                            // Only log as error if it contains actual error keywords
+                                            if line_str.to_lowercase().contains("error") || 
+                                               line_str.to_lowercase().contains("failed") ||
+                                               line_str.to_lowercase().contains("exception") {
+                                                error!("Sidecar stderr: {}", line_str);
+                                            } else {
+                                                info!("Sidecar: {}", line_str);
+                                            }
                                         }
                                         tauri_plugin_shell::process::CommandEvent::Error(err) => {
                                             error!("Sidecar error: {}", err);

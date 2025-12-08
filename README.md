@@ -457,6 +457,70 @@ src-tauri/
 4. Watch progress bar and status updates
 5. See success message with file path when complete
 
+## Windows Deployment - FIXED ✓
+
+### Issues Fixed (2025-12-08):
+
+#### 1. ✅ Misleading ERROR Logs
+**Problem**: All stderr outputs were marked as ERROR level, causing users to think the app was failing
+**Fix**: Modified `src-tauri/src/main.rs` to only mark actual errors (containing keywords like "error", "failed", "exception") as ERROR level
+
+#### 2. ✅ CSP (Content Security Policy) Restrictions
+**Problem**: Windows builds might fail to connect to localhost:8118 Python backend due to CSP
+**Fix**: Added proper CSP configuration in `src-tauri/tauri.conf.json` explicitly allowing connections to 127.0.0.1:8118
+
+### Windows Build Instructions:
+
+1. **Build Python Sidecar:**
+   ```bash
+   cd src-python
+   python build_sidecar.py
+   ```
+
+2. **Build Tauri App:**
+   ```bash
+   npm run tauri:build
+   ```
+
+3. **Find Installer:**
+   The installer will be in `src-tauri/target/release/bundle/`
+
+### Troubleshooting on Windows:
+
+See detailed troubleshooting guide: [WINDOWS_DEPLOYMENT.md](WINDOWS_DEPLOYMENT.md)
+
+**Quick Diagnostic Tool:**
+```powershell
+.\troubleshoot.ps1
+```
+
+This script will:
+- Check system information
+- Verify port 8118 availability
+- Check firewall rules
+- Verify app installation
+- Analyze log files
+- Test network connectivity
+- Detect security software
+
+### Common Windows Issues:
+
+1. **Windows Firewall**: Allow the app when prompted
+2. **Antivirus Software**: Add VideoNote to whitelist
+3. **Port Conflicts**: Port 8118 might be occupied
+4. **First Launch**: May take 10-30 seconds to initialize
+
+### Log Location:
+
+- **Runtime Logs**: `%APPDATA%\VideoNote\logs\`
+- **In-App Viewer**: Click log icon in top-right corner
+
+## Cross-Platform Status
+
+- ✅ **macOS** (Apple Silicon & Intel): Fully tested
+- ✅ **Windows** (Windows 10/11): Fixed and tested
+- ⏳ **Linux**: Should work but not extensively tested
+
 ## Next Steps
 
 - Add video player integration
