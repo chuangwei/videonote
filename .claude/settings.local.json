@@ -14,7 +14,9 @@
       "Bash(npm run tauri:*)",
       "WebSearch",
       "Bash(python3:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

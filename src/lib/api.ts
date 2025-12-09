@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type Event } from "@tauri-apps/api/event";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 /**
  * API Client for communicating with the Python sidecar
@@ -64,30 +65,23 @@ class ApiClient {
     console.log(`Making GET request to: ${url}`);
 
     try {
-      // Add timeout for fetch request (especially important on Windows)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout per request
-
-      const response = await fetch(url, {
-        signal: controller.signal,
-        // Explicitly set mode for CORS
-        mode: 'cors',
-        // Add cache busting to avoid Windows caching issues
-        cache: 'no-cache',
+      // Use Tauri's HTTP client for better cross-platform compatibility
+      // This bypasses browser security restrictions on Windows
+      const response = await tauriFetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        connectTimeout: 10,  // 10 second connection timeout
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
-      return response.json();
+      return await response.json();
     } catch (error) {
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error(`Request to ${url} timed out after 10 seconds`);
-        }
         throw new Error(`Failed to connect to ${url}: ${error.message}`);
       }
       throw error;
@@ -104,34 +98,25 @@ class ApiClient {
     console.log(`Making POST request to: ${url}`);
 
     try {
-      // Add timeout for fetch request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const response = await fetch(url, {
+      // Use Tauri's HTTP client for better cross-platform compatibility
+      // Convert data to JSON string for Tauri's Body type
+      const response = await tauriFetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
-        signal: controller.signal,
-        mode: 'cors',
-        cache: 'no-cache',
+        body: JSON.stringify(data),  // Tauri HTTP plugin accepts string body
+        connectTimeout: 10,  // 10 second connection timeout
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API request failed: ${response.statusText} - ${errorText}`);
+        throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      return response.json();
+      return await response.json();
     } catch (error) {
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error(`Request to ${url} timed out after 10 seconds`);
-        }
         throw new Error(`Failed to connect to ${url}: ${error.message}`);
       }
       throw error;
