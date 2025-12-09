@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-09
+- 🎉 **自动 ffmpeg 下载和打包功能**
+  - 新增 `download_ffmpeg.py` - 自动下载对应平台的 ffmpeg
+  - 支持 Windows, Linux, macOS 三个平台
+  - 智能缓存机制，避免重复下载
+  - 缓存目录：`src-python/.ffmpeg_cache/`
+- 增强的 `build_sidecar.py`
+  - 新增 `--platform` 参数支持跨平台构建准备
+  - 自动调用 `download_ffmpeg.py` 获取 ffmpeg
+  - 更清晰的中文提示信息
+- 新增测试脚本 `test_ffmpeg_download.py`
+  - 测试当前平台和跨平台下载
+  - 显示缓存状态
+- 新增文档
+  - `WINDOWS_BUILD_GUIDE.md` - Windows 构建详细指南
+  - `QUICK_START_CN.md` - 中文快速开始指南
+
+### Changed - 2025-12-09
+- 更新 `.gitignore` 忽略 ffmpeg 缓存目录
+- 更新 `README.md` 添加自动 ffmpeg 打包说明
+- 优化构建流程，无需手动安装 ffmpeg
+
+### Fixed - 2025-12-09
+- 解决 Windows 应用打包时需要手动安装 ffmpeg 的问题
+- 提供了更友好的错误提示和多种安装方式
+
 ### Changed - Dynamic Port Assignment (2025-12-08)
 
 #### 🔄 从固定端口改为动态端口分配
@@ -188,3 +214,4 @@ Tauri的Content Security Policy (CSP)配置为`null`,在某些Windows环境下�
 
 [Unreleased]: https://github.com/yourusername/videonote/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/yourusername/videonote/releases/tag/v0.1.0
+

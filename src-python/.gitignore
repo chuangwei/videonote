@@ -1,0 +1,15 @@
+build/
+dist/
+*.spec
+
+# ffmpeg 缓存目录
+.ffmpeg_cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/

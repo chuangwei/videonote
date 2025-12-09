@@ -148,3 +148,4 @@ if (Test-Path $logPath) {
         explorer $logPath
     }
 }
+

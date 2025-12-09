@@ -97,3 +97,4 @@ fn main() {
 - `src-tauri/src/main.rs` - 包含 sidecar 启动逻辑
 - `src-python/build_sidecar.py` - Python sidecar 构建脚本
 - `.github/workflows/release.yml` - CI/CD 工作流
+

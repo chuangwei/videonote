@@ -494,9 +494,15 @@ npm run dev
 
 ### Windows Build Instructions:
 
-1. **Build Python Sidecar:**
+**NEW**: ffmpeg 现在会自动下载和打包! 🎉
+
+1. **Build Python Sidecar (自动下载 ffmpeg):**
    ```bash
    cd src-python
+   # Windows 构建 (在任何平台上)
+   python build_sidecar.py --platform windows
+   
+   # 或当前平台构建
    python build_sidecar.py
    ```
 
@@ -507,6 +513,10 @@ npm run dev
 
 3. **Find Installer:**
    The installer will be in `src-tauri/target/release/bundle/`
+
+**详细构建指南**: [WINDOWS_BUILD_GUIDE.md](WINDOWS_BUILD_GUIDE.md)
+
+**注意**: PyInstaller 有跨平台限制，要生成 Windows .exe 最好在 Windows 上构建。推荐使用 GitHub Actions 进行多平台构建。
 
 ### Troubleshooting on Windows:
 

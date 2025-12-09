@@ -20,6 +20,9 @@ src-tauri/target/
 src-tauri/Cargo.lock
 src-tauri/binaries/
 
+# Python ffmpeg cache
+src-python/.ffmpeg_cache/
+
 # Build outputs
 dist/
 *.log
