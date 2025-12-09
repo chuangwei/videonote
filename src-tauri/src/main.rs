@@ -90,7 +90,7 @@ fn main() {
 
                 // Create sidecar command with dynamic port (port 0 = auto-assign)
                 info!("Creating sidecar command for 'vn-sidecar' with dynamic port");
-                let sidecar_command = shell.sidecar("vn-sidecar")
+                let sidecar_command = shell.sidecar("binaries/vn-sidecar")
                     .map(|cmd| cmd.args(["--port", "0"]));
 
                 match sidecar_command {
