@@ -50,19 +50,29 @@ class VideoDownloader:
         """
         # Check PyInstaller temporary directory first (if bundled)
         if hasattr(sys, '_MEIPASS'):
-            ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg")
-            if os.path.exists(ffmpeg_path):
-                print(f"Found bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
-                return ffmpeg_path
-            # Windows check
-            if os.path.exists(ffmpeg_path + ".exe"):
-                print(f"Found bundled ffmpeg at: {ffmpeg_path}.exe", file=sys.stderr)
-                return ffmpeg_path + ".exe"
+            print(f"Running from PyInstaller bundle: {sys._MEIPASS}", file=sys.stderr)
 
-        # Check system PATH
+            # Windows: check for ffmpeg.exe
+            if sys.platform.startswith('win'):
+                ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg.exe")
+                if os.path.exists(ffmpeg_path):
+                    print(f"Found bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                    return ffmpeg_path
+                else:
+                    print(f"Bundled ffmpeg.exe not found at: {ffmpeg_path}", file=sys.stderr)
+            else:
+                # macOS/Linux: check for ffmpeg (no extension)
+                ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg")
+                if os.path.exists(ffmpeg_path):
+                    print(f"Found bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                    return ffmpeg_path
+                else:
+                    print(f"Bundled ffmpeg not found at: {ffmpeg_path}", file=sys.stderr)
+
+        # Check system PATH as fallback
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
-            print(f"Found ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+            print(f"Found ffmpeg in system PATH: {ffmpeg_path}", file=sys.stderr)
             return ffmpeg_path
         else:
             print("Warning: ffmpeg not found in PATH or bundle", file=sys.stderr)

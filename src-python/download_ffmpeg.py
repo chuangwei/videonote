@@ -152,12 +152,17 @@ def download_ffmpeg_for_platform(platform_key, cache_dir):
         
         # Copy to cache directory
         shutil.copy2(ffmpeg_path, cached_ffmpeg)
-        
+
         # Set executable permissions on Unix systems
         if platform_key != "windows":
             os.chmod(cached_ffmpeg, 0o755)
-        
-        print(f"ffmpeg saved to: {cached_ffmpeg}")
+
+        # Verify the copied file
+        if not cached_ffmpeg.exists():
+            raise Exception(f"Failed to copy ffmpeg to {cached_ffmpeg}")
+
+        file_size = cached_ffmpeg.stat().st_size
+        print(f"ffmpeg saved to: {cached_ffmpeg} (size: {file_size} bytes)")
         return str(cached_ffmpeg)
         
     finally:

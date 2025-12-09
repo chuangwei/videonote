@@ -36,7 +36,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'  # Use 3.11 for better PyInstaller stability
 
       - name: Install Python dependencies
         run: |
@@ -57,7 +57,22 @@ jobs:
         run: |
           ffmpeg -version
 
-      - name: Build Python Sidecar
+      - name: Build Python Sidecar (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd src-python
+          python build_sidecar.py
+          # Verify the binary was created
+          if (-not (Test-Path "../src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe")) {
+            Write-Error "Windows sidecar binary not found!"
+            exit 1
+          }
+          Write-Host "Windows sidecar binary created successfully"
+          cd ..
+
+      - name: Build Python Sidecar (Unix)
+        if: matrix.platform != 'windows-latest'
         shell: bash
         run: |
           cd src-python

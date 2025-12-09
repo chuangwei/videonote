@@ -133,6 +133,11 @@ def build_sidecar(target_platform=None):
         "--hidden-import=uvicorn.protocols.websockets.auto",
         "--hidden-import=uvicorn.lifespan",
         "--hidden-import=uvicorn.lifespan.on",
+        # Pydantic imports (required for FastAPI on Windows)
+        "--hidden-import=pydantic",
+        "--hidden-import=pydantic.fields",
+        "--hidden-import=pydantic_core",
+        # yt-dlp with all dependencies
         "--collect-all=yt_dlp",
         str(script_dir / "main.py")
     ]

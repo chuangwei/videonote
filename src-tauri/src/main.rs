@@ -89,8 +89,10 @@ fn main() {
                 let shell = handle.shell();
 
                 // Create sidecar command with dynamic port (port 0 = auto-assign)
+                // IMPORTANT: Pass only the binary name (without path or extension)
+                // Tauri will automatically look in externalBin paths from tauri.conf.json
                 info!("Creating sidecar command for 'vn-sidecar' with dynamic port");
-                let sidecar_command = shell.sidecar("binaries/vn-sidecar")
+                let sidecar_command = shell.sidecar("vn-sidecar")
                     .map(|cmd| cmd.args(["--port", "0"]));
 
                 match sidecar_command {
