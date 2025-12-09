@@ -5,7 +5,7 @@ import platform
 import subprocess
 from pathlib import Path
 
-# 导入自动下载 ffmpeg 的模块
+# Import auto-download ffmpeg module
 try:
     from download_ffmpeg import get_ffmpeg_path as auto_get_ffmpeg
 except ImportError:
@@ -13,35 +13,35 @@ except ImportError:
 
 def get_ffmpeg_path(target_platform=None):
     """
-    获取 ffmpeg 路径，支持自动下载
+    Get ffmpeg path, with auto-download support
     
     Args:
-        target_platform: 目标平台 (windows/darwin/linux)
+        target_platform: Target platform (windows/darwin/linux)
     
     Returns:
-        ffmpeg 可执行文件的路径
+        Path to ffmpeg executable
     """
-    # 首先尝试自动下载/获取 ffmpeg
+    # First try to auto-download/get ffmpeg
     if auto_get_ffmpeg:
         try:
-            print("尝试自动获取 ffmpeg...")
+            print("Attempting to auto-get ffmpeg...")
             return auto_get_ffmpeg(target_platform)
         except Exception as e:
-            print(f"自动获取 ffmpeg 失败: {e}")
-            print("回退到系统 PATH 查找...")
+            print(f"Auto-get ffmpeg failed: {e}")
+            print("Falling back to system PATH search...")
     
-    # 回退到检查系统 PATH
+    # Fall back to checking system PATH
     ffmpeg_path = shutil.which("ffmpeg")
     if not ffmpeg_path:
         print("\n" + "="*60)
-        print("错误: 未找到 ffmpeg")
+        print("Error: ffmpeg not found")
         print("="*60)
-        print("\n请选择以下方式之一安装 ffmpeg:")
-        print("\n方式 1: 使用包管理器安装")
+        print("\nPlease install ffmpeg using one of the following methods:")
+        print("\nMethod 1: Use package manager")
         print("  macOS:   brew install ffmpeg")
         print("  Windows: choco install ffmpeg")
         print("  Linux:   sudo apt-get install ffmpeg")
-        print("\n方式 2: 使用自动下载脚本")
+        print("\nMethod 2: Use auto-download script")
         print("  python download_ffmpeg.py --platform windows")
         print("\n" + "="*60)
         sys.exit(1)
@@ -67,10 +67,10 @@ def get_target_triple():
 
 def build_sidecar(target_platform=None):
     """
-    构建 Python Sidecar
+    Build Python Sidecar
     
     Args:
-        target_platform: 目标平台 (windows/darwin/linux)，如果为 None 则为当前平台
+        target_platform: Target platform (windows/darwin/linux), defaults to current platform if None
     """
     print("================================================")
     print("Building VideoNote Python Sidecar (Python Script)")
@@ -83,13 +83,13 @@ def build_sidecar(target_platform=None):
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 确定目标平台
+    # Determine target platform
     if target_platform:
-        print(f"目标平台 (指定): {target_platform}")
-        # 将平台名称转换为目标三元组
+        print(f"Target platform (specified): {target_platform}")
+        # Convert platform name to target triple
         platform_map = {
             "windows": "x86_64-pc-windows-msvc",
-            "darwin": get_target_triple(),  # 使用当前系统的架构
+            "darwin": get_target_triple(),  # Use current system architecture
             "linux": "x86_64-unknown-linux-gnu",
         }
         target_triple = platform_map.get(target_platform, get_target_triple())
@@ -101,13 +101,13 @@ def build_sidecar(target_platform=None):
     if target_platform == "windows":
         binary_name += ".exe"
         
-    print(f"目标平台: {target_platform}")
+    print(f"Target platform: {target_platform}")
     print(f"Target Triple: {target_triple}")
     print(f"Binary Name: {binary_name}")
     
-    # 获取对应平台的 ffmpeg
+    # Get ffmpeg for the target platform
     ffmpeg_path = get_ffmpeg_path(target_platform)
-    print(f"使用 ffmpeg: {ffmpeg_path}")
+    print(f"Using ffmpeg: {ffmpeg_path}")
 
     # Clean build/dist in src-python
     shutil.rmtree(script_dir / "build", ignore_errors=True)
@@ -158,11 +158,11 @@ def build_sidecar(target_platform=None):
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="构建 VideoNote Python Sidecar")
+    parser = argparse.ArgumentParser(description="Build VideoNote Python Sidecar")
     parser.add_argument(
         "--platform",
         choices=["windows", "darwin", "linux"],
-        help="目标平台 (默认为当前平台)"
+        help="Target platform (defaults to current platform)"
     )
     args = parser.parse_args()
     
