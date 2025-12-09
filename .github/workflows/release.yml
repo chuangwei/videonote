@@ -51,11 +51,46 @@ jobs:
       - name: Install ffmpeg (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
-          choco install ffmpeg
+          choco install ffmpeg -y
+
+      - name: Verify ffmpeg installation
+        run: |
+          ffmpeg -version
 
       - name: Build Python Sidecar
+        shell: bash
         run: |
-          python src-python/build_sidecar.py
+          cd src-python
+          python build_sidecar.py
+          cd ..
+
+      - name: Verify Sidecar Binary
+        shell: bash
+        run: |
+          echo "Listing src-tauri/binaries directory:"
+          ls -la src-tauri/binaries/ || true
+
+          # Check for expected binary based on platform
+          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
+            EXPECTED_BINARY="src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe"
+          elif [ "${{ matrix.platform }}" == "macos-latest" ]; then
+            # macOS could be either architecture
+            if [ -f "src-tauri/binaries/vn-sidecar-aarch64-apple-darwin" ] || [ -f "src-tauri/binaries/vn-sidecar-x86_64-apple-darwin" ]; then
+              echo "macOS sidecar binary found"
+              exit 0
+            fi
+            EXPECTED_BINARY="src-tauri/binaries/vn-sidecar-*-apple-darwin"
+          else
+            EXPECTED_BINARY="src-tauri/binaries/vn-sidecar-x86_64-unknown-linux-gnu"
+          fi
+
+          echo "Checking for binary: $EXPECTED_BINARY"
+          if [ ! -f "$EXPECTED_BINARY" ] && [ "${{ matrix.platform }}" != "macos-latest" ]; then
+            echo "ERROR: Expected sidecar binary not found: $EXPECTED_BINARY"
+            exit 1
+          fi
+
+          echo "Sidecar binary verified successfully"
 
       - name: Install frontend dependencies
         run: npm install

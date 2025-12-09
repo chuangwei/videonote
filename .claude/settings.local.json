@@ -11,7 +11,9 @@
       "Bash(source:*)",
       "Bash(pip install:*)",
       "Bash(chmod:*)",
-      "Bash(npm run tauri:*)"
+      "Bash(npm run tauri:*)",
+      "WebSearch",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
