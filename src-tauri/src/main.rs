@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::{Arc, Mutex};
-use tauri::{Emitter, Listener, Manager, State};
+use tauri::{Emitter, Manager, State};
 use tauri_plugin_shell::ShellExt;
 use log::{info, error};
 
