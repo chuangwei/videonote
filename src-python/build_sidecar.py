@@ -213,23 +213,17 @@ def build_sidecar(target_platform=None):
     print("Full PyInstaller command:")
     print(" ".join(args))
     print()
+    print("="*60)
 
-    # Run PyInstaller and capture output for error reporting
-    result = subprocess.run(args, cwd=script_dir, capture_output=True, text=True)
-
-    # Print stdout
-    if result.stdout:
-        print(result.stdout)
-
-    # Print stderr (PyInstaller writes to stderr even on success)
-    if result.stderr:
-        print(result.stderr, file=sys.stderr)
-
-    # Check if it failed
-    if result.returncode != 0:
-        print(f"\nERROR: PyInstaller failed with exit code {result.returncode}")
-        print("\nThis usually means there's a syntax error in the .spec file or missing dependencies.")
-        print("Check the output above for the actual error message.")
+    # Run PyInstaller WITHOUT capturing output - let it display directly
+    # This way we can see the real error
+    try:
+        subprocess.run(args, cwd=script_dir, check=True)
+        print("="*60)
+        print("PyInstaller completed successfully!")
+    except subprocess.CalledProcessError as e:
+        print("="*60)
+        print(f"\nERROR: PyInstaller failed with exit code {e.returncode}")
         sys.exit(1)
 
     # Check if .spec file was generated and examine it
