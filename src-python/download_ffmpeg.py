@@ -48,16 +48,34 @@ def get_platform_key():
 def download_file(url, dest_path):
     """Download file and show progress"""
     print(f"Downloading: {url}")
-    
+
     def reporthook(block_num, block_size, total_size):
         downloaded = block_num * block_size
         if total_size > 0:
             percent = min(downloaded * 100.0 / total_size, 100)
             sys.stdout.write(f"\rProgress: {percent:.1f}% ({downloaded}/{total_size} bytes)")
             sys.stdout.flush()
-    
-    urllib.request.urlretrieve(url, dest_path, reporthook)
-    print("\nDownload complete!")
+
+    try:
+        urllib.request.urlretrieve(url, dest_path, reporthook)
+        print("\nDownload complete!")
+
+        # Verify downloaded file exists and has reasonable size
+        if not os.path.exists(dest_path):
+            raise Exception(f"Downloaded file not found: {dest_path}")
+
+        file_size = os.path.getsize(dest_path)
+        print(f"Downloaded file size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
+
+        if file_size < 1024 * 1024:  # Less than 1 MB
+            raise Exception(f"Downloaded file is suspiciously small: {file_size} bytes")
+
+    except urllib.error.HTTPError as e:
+        raise Exception(f"HTTP Error {e.code}: {e.reason}. URL: {url}")
+    except urllib.error.URLError as e:
+        raise Exception(f"URL Error: {e.reason}. URL: {url}")
+    except Exception as e:
+        raise Exception(f"Download failed: {str(e)}")
 
 
 def extract_zip(zip_path, extract_to):

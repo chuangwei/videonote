@@ -48,14 +48,35 @@ jobs:
         run: |
           brew install ffmpeg
 
-      - name: Install ffmpeg (Windows)
+      - name: Download and cache ffmpeg (Windows)
         if: matrix.platform == 'windows-latest'
+        shell: pwsh
         run: |
-          choco install ffmpeg -y
+          cd src-python
+          python download_ffmpeg.py --platform windows
+          # Verify ffmpeg was downloaded
+          $ffmpegPath = ".ffmpeg_cache/windows/ffmpeg.exe"
+          if (-not (Test-Path $ffmpegPath)) {
+            Write-Error "ffmpeg.exe not found in cache!"
+            exit 1
+          }
+          $ffmpegSize = (Get-Item $ffmpegPath).Length / 1MB
+          Write-Host "ffmpeg.exe size: $([math]::Round($ffmpegSize, 2)) MB"
+          if ($ffmpegSize -lt 50) {
+            Write-Error "ffmpeg.exe is too small ($ffmpegSize MB), expected at least 50 MB"
+            exit 1
+          }
+          Write-Host "ffmpeg downloaded and verified successfully"
+          cd ..
+
+      - name: Install ffmpeg (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          brew install ffmpeg
 
       - name: Verify ffmpeg installation
         run: |
-          ffmpeg -version
+          ffmpeg -version || echo "ffmpeg not in PATH (will use bundled version)"
 
       - name: Build Python Sidecar (Windows)
         if: matrix.platform == 'windows-latest'
@@ -64,11 +85,18 @@ jobs:
           cd src-python
           python build_sidecar.py
           # Verify the binary was created
-          if (-not (Test-Path "../src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe")) {
+          $binaryPath = "../src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe"
+          if (-not (Test-Path $binaryPath)) {
             Write-Error "Windows sidecar binary not found!"
             exit 1
           }
-          Write-Host "Windows sidecar binary created successfully"
+          $binarySize = (Get-Item $binaryPath).Length / 1MB
+          Write-Host "Sidecar binary size: $([math]::Round($binarySize, 2)) MB"
+          if ($binarySize -lt 100) {
+            Write-Error "Sidecar binary is too small ($binarySize MB), expected at least 100 MB. ffmpeg may not be bundled."
+            exit 1
+          }
+          Write-Host "Windows sidecar binary created and verified successfully"
           cd ..
 
       - name: Build Python Sidecar (Unix)

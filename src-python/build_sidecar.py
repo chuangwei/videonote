@@ -128,14 +128,25 @@ def build_sidecar(target_platform=None):
     # IMPORTANT: Always use ; for --add-binary separator on Windows host
     # Use : for Unix hosts (even when building for Windows target)
     separator = ";" if platform.system().lower() == "windows" else ":"
-    
+
+    # For Windows, ensure path uses forward slashes or raw strings
+    # PyInstaller on Windows can be picky about path formats
+    if platform.system().lower() == "windows":
+        # Convert to absolute path and use forward slashes
+        ffmpeg_path_abs = str(Path(ffmpeg_path).absolute()).replace("\\", "/")
+        add_binary_arg = f"--add-binary={ffmpeg_path_abs}{separator}."
+    else:
+        add_binary_arg = f"--add-binary={ffmpeg_path}{separator}."
+
+    print(f"PyInstaller add-binary argument: {add_binary_arg}")
+
     args = [
         "pyinstaller",
         "--onefile",
         "--name", binary_name,
         "--clean",
         "--noconfirm",
-        f"--add-binary={ffmpeg_path}{separator}.",
+        add_binary_arg,
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
         "--hidden-import=uvicorn.loops.auto",
@@ -156,7 +167,25 @@ def build_sidecar(target_platform=None):
     ]
     
     print("\nRunning PyInstaller...")
-    subprocess.run(args, check=True, cwd=script_dir)
+    print("Full PyInstaller command:")
+    print(" ".join(args))
+    print()
+
+    result = subprocess.run(args, check=True, cwd=script_dir, capture_output=False)
+
+    # Check if .spec file was generated and examine it
+    spec_file = script_dir / f"{binary_name}.spec"
+    if spec_file.exists():
+        print(f"\nPyInstaller spec file generated: {spec_file}")
+        # Read and check if ffmpeg is mentioned in the spec
+        with open(spec_file, 'r') as f:
+            spec_content = f.read()
+            if 'ffmpeg' in spec_content.lower():
+                print("OK: ffmpeg is referenced in the .spec file")
+            else:
+                print("WARNING: ffmpeg not found in .spec file - it may not be bundled!")
+    else:
+        print("WARNING: .spec file not found")
 
     # Copy binary to src-tauri/binaries
     source_binary = script_dir / "dist" / binary_name
