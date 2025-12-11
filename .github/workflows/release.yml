@@ -97,6 +97,16 @@ jobs:
           cd src-python
           python build_sidecar.py
 
+          # Display the generated .spec file for debugging
+          Write-Host "`n=========================================="
+          Write-Host "Generated .spec file content:"
+          Write-Host "=========================================="
+          $specFile = "vn-sidecar-x86_64-pc-windows-msvc.exe.spec"
+          if (Test-Path $specFile) {
+            Get-Content $specFile | ForEach-Object { Write-Host $_ }
+          }
+          Write-Host "=========================================="
+
           # Check if .spec file was created and contains ffmpeg
           Write-Host "`n=========================================="
           Write-Host "Checking PyInstaller .spec file"

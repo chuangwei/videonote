@@ -8,7 +8,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[
-        # FFMPEG_BINARY_PLACEHOLDER - will be replaced by build script
+        # FFMPEG_BINARY_PLACEHOLDER
     ],
     datas=[],
     hiddenimports=[

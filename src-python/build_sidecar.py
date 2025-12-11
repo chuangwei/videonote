@@ -159,7 +159,13 @@ def build_sidecar(target_platform=None):
         ffmpeg_spec_path = ffmpeg_abs_path.replace('\\', '/')
         binary_entry = f"(r'{ffmpeg_spec_path}', '.'),"
 
-        spec_content = spec_content.replace('# FFMPEG_BINARY_PLACEHOLDER', binary_entry)
+        # Replace the entire line containing the placeholder to preserve indentation
+        import re
+        spec_content = re.sub(
+            r'(\s*)# FFMPEG_BINARY_PLACEHOLDER.*',
+            r'\1' + binary_entry,
+            spec_content
+        )
         spec_content = spec_content.replace('BINARY_NAME_PLACEHOLDER', binary_name)
 
         # Write processed spec file
@@ -208,7 +214,23 @@ def build_sidecar(target_platform=None):
     print(" ".join(args))
     print()
 
-    result = subprocess.run(args, check=True, cwd=script_dir, capture_output=False)
+    # Run PyInstaller and capture output for error reporting
+    result = subprocess.run(args, cwd=script_dir, capture_output=True, text=True)
+
+    # Print stdout
+    if result.stdout:
+        print(result.stdout)
+
+    # Print stderr (PyInstaller writes to stderr even on success)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+
+    # Check if it failed
+    if result.returncode != 0:
+        print(f"\nERROR: PyInstaller failed with exit code {result.returncode}")
+        print("\nThis usually means there's a syntax error in the .spec file or missing dependencies.")
+        print("Check the output above for the actual error message.")
+        sys.exit(1)
 
     # Check if .spec file was generated and examine it
     spec_file = script_dir / f"{binary_name}.spec"
