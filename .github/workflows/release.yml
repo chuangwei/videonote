@@ -96,6 +96,31 @@ jobs:
         run: |
           cd src-python
           python build_sidecar.py
+
+          # Check if .spec file was created and contains ffmpeg
+          Write-Host "`n=========================================="
+          Write-Host "Checking PyInstaller .spec file"
+          Write-Host "=========================================="
+          $specFile = "vn-sidecar-x86_64-pc-windows-msvc.exe.spec"
+          if (Test-Path $specFile) {
+            Write-Host "Spec file found: $specFile"
+            $specContent = Get-Content $specFile -Raw
+            if ($specContent -match "ffmpeg") {
+              Write-Host "OK: ffmpeg found in .spec file"
+              # Print binaries section
+              Write-Host "`nBinaries section:"
+              $specContent -split "`n" | Where-Object { $_ -match "binaries|ffmpeg|datas" } | ForEach-Object { Write-Host "  $_" }
+            } else {
+              Write-Error "ERROR: ffmpeg NOT found in .spec file!"
+              Write-Host "`nFull .spec file content:"
+              Write-Host $specContent
+              exit 1
+            }
+          } else {
+            Write-Error ".spec file not found!"
+            exit 1
+          }
+
           # Verify the binary was created
           $binaryPath = "../src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe"
           if (-not (Test-Path $binaryPath)) {
@@ -103,9 +128,14 @@ jobs:
             exit 1
           }
           $binarySize = (Get-Item $binaryPath).Length / 1MB
-          Write-Host "Sidecar binary size: $([math]::Round($binarySize, 2)) MB"
+          Write-Host "`nSidecar binary size: $([math]::Round($binarySize, 2)) MB"
           if ($binarySize -lt 100) {
             Write-Error "Sidecar binary is too small ($binarySize MB), expected at least 100 MB. ffmpeg may not be bundled."
+            Write-Host "`nThis indicates PyInstaller did not include ffmpeg in the bundle."
+            Write-Host "Possible causes:"
+            Write-Host "  1. --add-binary argument not properly formatted"
+            Write-Host "  2. Path contains special characters that broke parsing"
+            Write-Host "  3. PyInstaller version incompatibility"
             exit 1
           }
           Write-Host "Windows sidecar binary created and verified successfully"
