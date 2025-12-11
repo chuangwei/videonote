@@ -70,28 +70,28 @@ class VideoDownloader:
                 ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg.exe")
                 print(f"[ffmpeg] Checking for bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
                 if os.path.exists(ffmpeg_path):
-                    print("[ffmpeg] ✓ Found bundled ffmpeg.exe", file=sys.stderr)
+                    print("[ffmpeg] OK Found bundled ffmpeg.exe", file=sys.stderr)
                     return ffmpeg_path
                 else:
-                    print("[ffmpeg] ✗ Bundled ffmpeg.exe not found", file=sys.stderr)
+                    print("[ffmpeg] NOT FOUND: Bundled ffmpeg.exe not found", file=sys.stderr)
             else:
                 # macOS/Linux: check for ffmpeg (no extension)
                 ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg")
                 print(f"[ffmpeg] Checking for bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
                 if os.path.exists(ffmpeg_path):
-                    print("[ffmpeg] ✓ Found bundled ffmpeg", file=sys.stderr)
+                    print("[ffmpeg] OK Found bundled ffmpeg", file=sys.stderr)
                     return ffmpeg_path
                 else:
-                    print("[ffmpeg] ✗ Bundled ffmpeg not found", file=sys.stderr)
+                    print("[ffmpeg] NOT FOUND: Bundled ffmpeg not found", file=sys.stderr)
 
         # Check system PATH as fallback
         print("[ffmpeg] Checking system PATH...", file=sys.stderr)
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
-            print(f"[ffmpeg] ✓ Found ffmpeg in system PATH: {ffmpeg_path}", file=sys.stderr)
+            print(f"[ffmpeg] OK Found ffmpeg in system PATH: {ffmpeg_path}", file=sys.stderr)
             return ffmpeg_path
         else:
-            print("[ffmpeg] ✗ ffmpeg not found in system PATH", file=sys.stderr)
+            print("[ffmpeg] NOT FOUND: ffmpeg not found in system PATH", file=sys.stderr)
             return None
 
     def _progress_hook(self, d: Dict[str, Any]) -> None:

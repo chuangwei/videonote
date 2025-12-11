@@ -189,10 +189,10 @@ def build_sidecar(target_platform=None):
         print("\nVerifying Windows binary packaging...")
         # For Windows, we can't easily check without running, so just document
         print("Note: Run the binary and check stderr logs for ffmpeg detection")
-        print("Expected log: '[ffmpeg] ✓ Found bundled ffmpeg.exe'")
+        print("Expected log: '[ffmpeg] OK Found bundled ffmpeg.exe'")
 
     print("\n" + "="*60)
-    print("✓ Build complete!")
+    print("BUILD COMPLETE!")
     print("="*60)
     print(f"Sidecar location: {dest_binary}")
     print(f"Sidecar size: {dest_binary.stat().st_size / 1024 / 1024:.2f} MB")
@@ -200,7 +200,7 @@ def build_sidecar(target_platform=None):
     print(f"ffmpeg size: {ffmpeg_size / 1024 / 1024:.2f} MB")
     print("\nTo verify ffmpeg was bundled correctly:")
     print("  Run the sidecar and check logs for:")
-    print("  '[ffmpeg] ✓ Found bundled ffmpeg'")
+    print("  '[ffmpeg] OK Found bundled ffmpeg'")
     print("="*60)
 
 if __name__ == "__main__":

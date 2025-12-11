@@ -69,15 +69,15 @@ Download failed: ERROR: You have requested merging of multiple formats but ffmpe
 ==================================================
 Getting ffmpeg for platform: windows
 ==================================================
-✓ ffmpeg saved to: src-python/.ffmpeg_cache/windows/ffmpeg.exe
-✓ File size: 103,424,512 bytes (98.61 MB)
+OK ffmpeg saved to: src-python/.ffmpeg_cache/windows/ffmpeg.exe
+OK File size: 103,424,512 bytes (98.61 MB)
 
 ffmpeg file size: 103,424,512 bytes (98.61 MB)
 
 Built binary size: 156,234,567 bytes (148.99 MB)
 
 ==================================================
-✓ Build complete!
+BUILD COMPLETE!
 ==================================================
 Sidecar location: ../src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe
 Sidecar size: 148.99 MB
@@ -94,25 +94,25 @@ ffmpeg size: 98.61 MB
 
 当应用启动并尝试下载视频时，检查日志（Tauri DevTools 或控制台）：
 
-✅ **成功**（ffmpeg 已打包）：
+**成功**（ffmpeg 已打包）：
 ```
 [ffmpeg] Platform: win32
 [ffmpeg] Running from PyInstaller bundle: C:\Users\...\Temp\_MEI123
 [ffmpeg] _MEIPASS contains 245 files
 [ffmpeg] Found ffmpeg-related files: ['ffmpeg.exe']
 [ffmpeg] Checking for bundled ffmpeg at: C:\Users\...\Temp\_MEI123\ffmpeg.exe
-[ffmpeg] ✓ Found bundled ffmpeg.exe
+[ffmpeg] OK Found bundled ffmpeg.exe
 [ffmpeg] Configuring yt-dlp with ffmpeg: C:\Users\...\Temp\_MEI123\ffmpeg.exe
 ```
 
-❌ **失败**（ffmpeg 未打包）：
+**失败**（ffmpeg 未打包）：
 ```
 [ffmpeg] Platform: win32
 [ffmpeg] Running from PyInstaller bundle: C:\Users\...\Temp\_MEI123
 [ffmpeg] _MEIPASS contains 120 files
 [ffmpeg] Checking for bundled ffmpeg at: C:\Users\...\Temp\_MEI123\ffmpeg.exe
-[ffmpeg] ✗ Bundled ffmpeg.exe not found
-[ffmpeg] ✗ ffmpeg not found in system PATH
+[ffmpeg] NOT FOUND: Bundled ffmpeg.exe not found
+[ffmpeg] NOT FOUND: ffmpeg not found in system PATH
 [ffmpeg] WARNING: ffmpeg not available, downloading pre-merged formats only
 ```
 

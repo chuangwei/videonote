@@ -165,8 +165,8 @@ def download_ffmpeg_for_platform(platform_key, cache_dir):
             raise Exception(f"Failed to copy ffmpeg to {cached_ffmpeg}")
 
         file_size = cached_ffmpeg.stat().st_size
-        print(f"✓ ffmpeg saved to: {cached_ffmpeg}")
-        print(f"✓ File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
+        print(f"OK ffmpeg saved to: {cached_ffmpeg}")
+        print(f"OK File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
 
         # Sanity check: ffmpeg should be at least 50 MB
         min_size = 50 * 1024 * 1024

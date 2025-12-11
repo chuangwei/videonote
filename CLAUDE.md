@@ -177,7 +177,7 @@ This is **critical** to understand:
    - Error: "You have requested merging of multiple formats but ffmpeg is not installed"
    - Solution: Rebuild sidecar on Windows: `cd src-python && python build_sidecar.py`
    - Verify: Check sidecar size is ~150 MB (not ~50 MB)
-   - Logs should show: `[ffmpeg] ✓ Found bundled ffmpeg.exe`
+   - Logs should show: `[ffmpeg] OK Found bundled ffmpeg.exe`
 
 9. **Cross-compilation doesn't work**: PyInstaller cannot cross-compile. Windows binaries must be built on Windows, macOS on macOS, etc. Use GitHub Actions for multi-platform builds.
 

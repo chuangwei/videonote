@@ -55,3 +55,4 @@ let sidecar_command = shell.sidecar("binaries/vn-sidecar")
 
 3.  **安装并测试**：
     运行生成的安装包或直接运行 `target/release/VideoNote.exe`。
+
