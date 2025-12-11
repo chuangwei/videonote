@@ -142,72 +142,33 @@ def build_sidecar(target_platform=None):
     print(f"Binary spec will be: {ffmpeg_abs_path}{separator}.")
     print(f"{'='*60}\n")
 
-    # Use .spec file template for more reliable configuration
-    spec_template_path = script_dir / "sidecar.spec.template"
-    spec_output_path = script_dir / f"{binary_name}.spec"
+    # SIMPLE AND RELIABLE: Use command-line arguments directly
+    # No .spec file complications
+    print("Using PyInstaller command-line mode (most reliable)")
 
-    if spec_template_path.exists():
-        print("Using .spec file template for PyInstaller")
-
-        # Read template
-        with open(spec_template_path, 'r', encoding='utf-8') as f:
-            spec_content = f.read()
-
-        # Replace placeholders
-        # For binaries, we need to use Python tuple syntax: ('source', 'dest')
-        # On Windows, use forward slashes in the spec file to avoid escape issues
-        ffmpeg_spec_path = ffmpeg_abs_path.replace('\\', '/')
-        binary_entry = f"(r'{ffmpeg_spec_path}', '.'),"
-
-        # Replace the entire line containing the placeholder to preserve indentation
-        import re
-        spec_content = re.sub(
-            r'(\s*)# FFMPEG_BINARY_PLACEHOLDER.*',
-            r'\1' + binary_entry,
-            spec_content
-        )
-        spec_content = spec_content.replace('BINARY_NAME_PLACEHOLDER', binary_name)
-
-        # Write processed spec file
-        with open(spec_output_path, 'w', encoding='utf-8') as f:
-            f.write(spec_content)
-
-        print(f"Generated spec file: {spec_output_path}")
-        print(f"ffmpeg binary entry: {binary_entry}")
-
-        # Run PyInstaller with the spec file
-        args = [
-            "pyinstaller",
-            "--clean",
-            "--noconfirm",
-            str(spec_output_path)
-        ]
-    else:
-        print("WARNING: .spec template not found, using command-line args")
-        # Fallback to command-line arguments
-        args = [
-            "pyinstaller",
-            "--onefile",
-            "--name", binary_name,
-            "--clean",
-            "--noconfirm",
-            "--add-binary", f"{ffmpeg_abs_path}{separator}.",
-            "--hidden-import=uvicorn.logging",
-            "--hidden-import=uvicorn.loops",
-            "--hidden-import=uvicorn.loops.auto",
-            "--hidden-import=uvicorn.protocols",
-            "--hidden-import=uvicorn.protocols.http",
-            "--hidden-import=uvicorn.protocols.http.auto",
-            "--hidden-import=uvicorn.protocols.websockets",
-            "--hidden-import=uvicorn.protocols.websockets.auto",
-            "--hidden-import=uvicorn.lifespan",
-            "--hidden-import=uvicorn.lifespan.on",
-            "--hidden-import=pydantic",
-            "--hidden-import=pydantic.fields",
-            "--hidden-import=pydantic_core",
-            "--collect-all=yt_dlp",
-            str(script_dir / "main.py")
-        ]
+    args = [
+        "pyinstaller",
+        "--onefile",
+        "--name", binary_name,
+        "--clean",
+        "--noconfirm",
+        "--add-binary", f"{ffmpeg_abs_path}{separator}.",
+        "--hidden-import=uvicorn.logging",
+        "--hidden-import=uvicorn.loops",
+        "--hidden-import=uvicorn.loops.auto",
+        "--hidden-import=uvicorn.protocols",
+        "--hidden-import=uvicorn.protocols.http",
+        "--hidden-import=uvicorn.protocols.http.auto",
+        "--hidden-import=uvicorn.protocols.websockets",
+        "--hidden-import=uvicorn.protocols.websockets.auto",
+        "--hidden-import=uvicorn.lifespan",
+        "--hidden-import=uvicorn.lifespan.on",
+        "--hidden-import=pydantic",
+        "--hidden-import=pydantic.fields",
+        "--hidden-import=pydantic_core",
+        "--collect-all=yt_dlp",
+        str(script_dir / "main.py")
+    ]
 
     print("\nRunning PyInstaller...")
     print("Full PyInstaller command:")
