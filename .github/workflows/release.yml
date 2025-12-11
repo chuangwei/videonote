@@ -74,9 +74,21 @@ jobs:
         run: |
           brew install ffmpeg
 
-      - name: Verify ffmpeg installation
+      - name: Verify ffmpeg installation (Unix)
+        if: matrix.platform != 'windows-latest'
+        shell: bash
         run: |
           ffmpeg -version || echo "ffmpeg not in PATH (will use bundled version)"
+
+      - name: Verify ffmpeg installation (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          try {
+            ffmpeg -version
+          } catch {
+            Write-Host "ffmpeg not in PATH (will use bundled version)"
+          }
 
       - name: Build Python Sidecar (Windows)
         if: matrix.platform == 'windows-latest'
