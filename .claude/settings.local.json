@@ -16,7 +16,8 @@
       "Bash(python3:*)",
       "Bash(cargo build:*)",
       "Bash(npm run build:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

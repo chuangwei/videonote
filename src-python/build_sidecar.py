@@ -109,11 +109,24 @@ def build_sidecar(target_platform=None):
     ffmpeg_path = get_ffmpeg_path(target_platform)
     print(f"Using ffmpeg: {ffmpeg_path}")
 
+    # Verify ffmpeg file exists and get its size
+    if not os.path.exists(ffmpeg_path):
+        print(f"ERROR: ffmpeg file does not exist: {ffmpeg_path}")
+        sys.exit(1)
+
+    ffmpeg_size = os.path.getsize(ffmpeg_path)
+    print(f"ffmpeg file size: {ffmpeg_size:,} bytes ({ffmpeg_size / 1024 / 1024:.2f} MB)")
+
+    if ffmpeg_size < 1024 * 1024:  # Less than 1 MB is suspicious
+        print(f"WARNING: ffmpeg file seems too small ({ffmpeg_size} bytes)")
+
     # Clean build/dist in src-python
     shutil.rmtree(script_dir / "build", ignore_errors=True)
     shutil.rmtree(script_dir / "dist", ignore_errors=True)
 
     # PyInstaller arguments
+    # IMPORTANT: Always use ; for --add-binary separator on Windows host
+    # Use : for Unix hosts (even when building for Windows target)
     separator = ";" if platform.system().lower() == "windows" else ":"
     
     args = [
@@ -148,7 +161,21 @@ def build_sidecar(target_platform=None):
     # Copy binary to src-tauri/binaries
     source_binary = script_dir / "dist" / binary_name
     dest_binary = output_dir / binary_name
-    
+
+    # Verify source binary exists
+    if not source_binary.exists():
+        print(f"\nERROR: PyInstaller did not create expected binary: {source_binary}")
+        print("Build failed!")
+        sys.exit(1)
+
+    source_size = source_binary.stat().st_size
+    print(f"\nBuilt binary size: {source_size:,} bytes ({source_size / 1024 / 1024:.2f} MB)")
+
+    # Sanity check: binary should be reasonably sized (at least 10 MB)
+    if source_size < 10 * 1024 * 1024:
+        print(f"WARNING: Binary seems too small ({source_size / 1024 / 1024:.2f} MB)")
+        print("This might indicate ffmpeg or other dependencies were not bundled correctly")
+
     print(f"\nCopying {source_binary} to {dest_binary}...")
     shutil.copy2(source_binary, dest_binary)
 
@@ -157,8 +184,24 @@ def build_sidecar(target_platform=None):
         st = os.stat(dest_binary)
         os.chmod(dest_binary, st.st_mode | 0o111)
 
-    print("\nBuild complete!")
+    # Try to verify ffmpeg was included in the bundle (optional check)
+    if target_platform == "windows":
+        print("\nVerifying Windows binary packaging...")
+        # For Windows, we can't easily check without running, so just document
+        print("Note: Run the binary and check stderr logs for ffmpeg detection")
+        print("Expected log: '[ffmpeg] ✓ Found bundled ffmpeg.exe'")
+
+    print("\n" + "="*60)
+    print("✓ Build complete!")
+    print("="*60)
     print(f"Sidecar location: {dest_binary}")
+    print(f"Sidecar size: {dest_binary.stat().st_size / 1024 / 1024:.2f} MB")
+    print(f"ffmpeg bundled from: {ffmpeg_path}")
+    print(f"ffmpeg size: {ffmpeg_size / 1024 / 1024:.2f} MB")
+    print("\nTo verify ffmpeg was bundled correctly:")
+    print("  Run the sidecar and check logs for:")
+    print("  '[ffmpeg] ✓ Found bundled ffmpeg'")
+    print("="*60)
 
 if __name__ == "__main__":
     import argparse

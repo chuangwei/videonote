@@ -15,7 +15,9 @@ from pathlib import Path
 
 FFMPEG_VERSIONS = {
     "windows": {
-        "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+        # Using GitHub releases for more reliable downloads
+        # This is ffmpeg 7.0.2 essentials build
+        "url": "https://github.com/GyanD/codexffmpeg/releases/download/7.0.2/ffmpeg-7.0.2-essentials_build.zip",
         "executable": "ffmpeg.exe",
     },
     "darwin": {
@@ -151,6 +153,7 @@ def download_ffmpeg_for_platform(platform_key, cache_dir):
         print(f"Found ffmpeg: {ffmpeg_path}")
         
         # Copy to cache directory
+        print(f"Copying ffmpeg from {ffmpeg_path} to {cached_ffmpeg}")
         shutil.copy2(ffmpeg_path, cached_ffmpeg)
 
         # Set executable permissions on Unix systems
@@ -162,7 +165,14 @@ def download_ffmpeg_for_platform(platform_key, cache_dir):
             raise Exception(f"Failed to copy ffmpeg to {cached_ffmpeg}")
 
         file_size = cached_ffmpeg.stat().st_size
-        print(f"ffmpeg saved to: {cached_ffmpeg} (size: {file_size} bytes)")
+        print(f"✓ ffmpeg saved to: {cached_ffmpeg}")
+        print(f"✓ File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
+
+        # Sanity check: ffmpeg should be at least 50 MB
+        min_size = 50 * 1024 * 1024
+        if file_size < min_size:
+            raise Exception(f"ffmpeg file seems too small ({file_size / 1024 / 1024:.2f} MB), expected at least {min_size / 1024 / 1024:.0f} MB")
+
         return str(cached_ffmpeg)
         
     finally:

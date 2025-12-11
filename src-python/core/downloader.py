@@ -48,34 +48,50 @@ class VideoDownloader:
         Returns:
             Path to ffmpeg or None if not found.
         """
+        print(f"[ffmpeg] Platform: {sys.platform}", file=sys.stderr)
+
         # Check PyInstaller temporary directory first (if bundled)
         if hasattr(sys, '_MEIPASS'):
-            print(f"Running from PyInstaller bundle: {sys._MEIPASS}", file=sys.stderr)
+            print(f"[ffmpeg] Running from PyInstaller bundle: {sys._MEIPASS}", file=sys.stderr)
+
+            # List contents of _MEIPASS for debugging
+            try:
+                meipass_files = os.listdir(sys._MEIPASS)
+                print(f"[ffmpeg] _MEIPASS contains {len(meipass_files)} files", file=sys.stderr)
+                # Show ffmpeg-related files
+                ffmpeg_files = [f for f in meipass_files if 'ffmpeg' in f.lower()]
+                if ffmpeg_files:
+                    print(f"[ffmpeg] Found ffmpeg-related files: {ffmpeg_files}", file=sys.stderr)
+            except Exception as e:
+                print(f"[ffmpeg] Could not list _MEIPASS: {e}", file=sys.stderr)
 
             # Windows: check for ffmpeg.exe
             if sys.platform.startswith('win'):
                 ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg.exe")
+                print(f"[ffmpeg] Checking for bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
                 if os.path.exists(ffmpeg_path):
-                    print(f"Found bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                    print("[ffmpeg] ✓ Found bundled ffmpeg.exe", file=sys.stderr)
                     return ffmpeg_path
                 else:
-                    print(f"Bundled ffmpeg.exe not found at: {ffmpeg_path}", file=sys.stderr)
+                    print("[ffmpeg] ✗ Bundled ffmpeg.exe not found", file=sys.stderr)
             else:
                 # macOS/Linux: check for ffmpeg (no extension)
                 ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg")
+                print(f"[ffmpeg] Checking for bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
                 if os.path.exists(ffmpeg_path):
-                    print(f"Found bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                    print("[ffmpeg] ✓ Found bundled ffmpeg", file=sys.stderr)
                     return ffmpeg_path
                 else:
-                    print(f"Bundled ffmpeg not found at: {ffmpeg_path}", file=sys.stderr)
+                    print("[ffmpeg] ✗ Bundled ffmpeg not found", file=sys.stderr)
 
         # Check system PATH as fallback
+        print("[ffmpeg] Checking system PATH...", file=sys.stderr)
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
-            print(f"Found ffmpeg in system PATH: {ffmpeg_path}", file=sys.stderr)
+            print(f"[ffmpeg] ✓ Found ffmpeg in system PATH: {ffmpeg_path}", file=sys.stderr)
             return ffmpeg_path
         else:
-            print("Warning: ffmpeg not found in PATH or bundle", file=sys.stderr)
+            print("[ffmpeg] ✗ ffmpeg not found in system PATH", file=sys.stderr)
             return None
 
     def _progress_hook(self, d: Dict[str, Any]) -> None:
@@ -173,7 +189,14 @@ class VideoDownloader:
         # Set default format preference if not provided
         # We prioritize mp4/h264 for better compatibility (e.g. QuickTime)
         if not format_preference or format_preference == "best":
-            format_preference = "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+            if self.ffmpeg_location:
+                # If ffmpeg is available, we can merge separate video/audio streams
+                format_preference = "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+                print("[ffmpeg] Using format with potential merge (ffmpeg available)", file=sys.stderr)
+            else:
+                # If ffmpeg is NOT available, only download pre-merged formats
+                format_preference = "best[ext=mp4]/best"
+                print("[ffmpeg] Using pre-merged format only (ffmpeg unavailable)", file=sys.stderr)
 
         # Configure yt-dlp options
         ydl_opts = {
@@ -183,18 +206,22 @@ class VideoDownloader:
             "quiet": False,
             "no_warnings": False,
             "extract_flat": False,
-            # Force output to mp4 container for better compatibility
-            "merge_output_format": "mp4",
-            # Ensure final output is mp4 even if source wasn't
-            "postprocessors": [{
-                "key": "FFmpegVideoConvertor",
-                "preferedformat": "mp4",
-            }],
         }
 
         # Add ffmpeg location if available
         if self.ffmpeg_location:
+            print(f"[ffmpeg] Configuring yt-dlp with ffmpeg: {self.ffmpeg_location}", file=sys.stderr)
             ydl_opts["ffmpeg_location"] = self.ffmpeg_location
+            # Force output to mp4 container for better compatibility
+            ydl_opts["merge_output_format"] = "mp4"
+            # Ensure final output is mp4 even if source wasn't
+            ydl_opts["postprocessors"] = [{
+                "key": "FFmpegVideoConvertor",
+                "preferedformat": "mp4",
+            }]
+        else:
+            print("[ffmpeg] WARNING: ffmpeg not available, downloading pre-merged formats only", file=sys.stderr)
+            print("[ffmpeg] Some videos may not be available in highest quality", file=sys.stderr)
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

@@ -83,9 +83,17 @@ This is **critical** to understand:
 ### FFmpeg Handling
 
 - `download_ffmpeg.py`: Auto-downloads platform-specific ffmpeg binaries
+  - Windows: Downloads from GitHub releases (~100 MB)
+  - macOS: Uses Homebrew-installed ffmpeg
+  - Cached in `src-python/.ffmpeg_cache/{platform}/`
 - `build_sidecar.py`: Bundles ffmpeg into PyInstaller binary via `--add-binary`
+  - Verifies ffmpeg file size (should be ~100 MB for Windows)
+  - Final sidecar should be ~150 MB on Windows (includes Python + yt-dlp + ffmpeg)
 - `core/downloader.py`: Auto-detects ffmpeg from PyInstaller bundle (`sys._MEIPASS`) or system PATH
+  - **Fallback strategy**: If ffmpeg not found, downloads pre-merged formats only (lower quality but won't fail)
+  - Detailed logging with `[ffmpeg]` prefix for debugging
 - Windows builds require ffmpeg.exe bundled due to lack of system ffmpeg
+- **IMPORTANT**: PyInstaller does NOT support cross-compilation - Windows sidecar must be built on Windows
 
 ## Key Development Patterns
 
@@ -164,6 +172,14 @@ This is **critical** to understand:
 6. **Sidecar termination**: Tauri auto-kills sidecar on app exit
 
 7. **CSP violations**: If API calls fail, check `tauri.conf.json` CSP `connect-src` includes the port range
+
+8. **ffmpeg not found on Windows**:
+   - Error: "You have requested merging of multiple formats but ffmpeg is not installed"
+   - Solution: Rebuild sidecar on Windows: `cd src-python && python build_sidecar.py`
+   - Verify: Check sidecar size is ~150 MB (not ~50 MB)
+   - Logs should show: `[ffmpeg] ✓ Found bundled ffmpeg.exe`
+
+9. **Cross-compilation doesn't work**: PyInstaller cannot cross-compile. Windows binaries must be built on Windows, macOS on macOS, etc. Use GitHub Actions for multi-platform builds.
 
 ## File Structure (Key Locations)
 
