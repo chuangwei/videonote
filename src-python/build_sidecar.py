@@ -129,24 +129,29 @@ def build_sidecar(target_platform=None):
     # Use : for Unix hosts (even when building for Windows target)
     separator = ";" if platform.system().lower() == "windows" else ":"
 
-    # For Windows, ensure path uses forward slashes or raw strings
-    # PyInstaller on Windows can be picky about path formats
-    if platform.system().lower() == "windows":
-        # Convert to absolute path and use forward slashes
-        ffmpeg_path_abs = str(Path(ffmpeg_path).absolute()).replace("\\", "/")
-        add_binary_arg = f"--add-binary={ffmpeg_path_abs}{separator}."
-    else:
-        add_binary_arg = f"--add-binary={ffmpeg_path}{separator}."
+    # Prepare ffmpeg path for PyInstaller
+    # PyInstaller needs the absolute path
+    ffmpeg_abs_path = str(Path(ffmpeg_path).absolute())
 
-    print(f"PyInstaller add-binary argument: {add_binary_arg}")
+    print(f"\n{'='*60}")
+    print("PyInstaller Binary Configuration:")
+    print(f"{'='*60}")
+    print(f"ffmpeg original path: {ffmpeg_path}")
+    print(f"ffmpeg absolute path: {ffmpeg_abs_path}")
+    print(f"Separator character: '{separator}'")
+    print(f"Binary spec will be: {ffmpeg_abs_path}{separator}.")
+    print(f"{'='*60}\n")
 
+    # Build PyInstaller command
+    # IMPORTANT: Use the two-argument form for --add-binary
+    # This avoids issues with special characters in paths
     args = [
         "pyinstaller",
         "--onefile",
         "--name", binary_name,
         "--clean",
         "--noconfirm",
-        add_binary_arg,
+        "--add-binary", f"{ffmpeg_abs_path}{separator}.",
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
         "--hidden-import=uvicorn.loops.auto",
@@ -178,12 +183,25 @@ def build_sidecar(target_platform=None):
     if spec_file.exists():
         print(f"\nPyInstaller spec file generated: {spec_file}")
         # Read and check if ffmpeg is mentioned in the spec
-        with open(spec_file, 'r') as f:
+        with open(spec_file, 'r', encoding='utf-8') as f:
             spec_content = f.read()
-            if 'ffmpeg' in spec_content.lower():
-                print("OK: ffmpeg is referenced in the .spec file")
-            else:
-                print("WARNING: ffmpeg not found in .spec file - it may not be bundled!")
+
+        print("\n" + "="*60)
+        print("Checking .spec file for ffmpeg reference:")
+        print("="*60)
+
+        if 'ffmpeg' in spec_content.lower():
+            print("OK: ffmpeg is referenced in the .spec file")
+            # Print the relevant lines
+            for i, line in enumerate(spec_content.split('\n'), 1):
+                if 'ffmpeg' in line.lower() or 'binaries' in line.lower() or 'datas' in line.lower():
+                    print(f"  Line {i}: {line.strip()}")
+        else:
+            print("ERROR: ffmpeg NOT found in .spec file!")
+            print("\nThis means PyInstaller did not register the --add-binary argument.")
+            print("Printing full .spec file for debugging:\n")
+            print(spec_content)
+        print("="*60)
     else:
         print("WARNING: .spec file not found")
 
