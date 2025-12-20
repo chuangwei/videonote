@@ -120,6 +120,13 @@ def build_sidecar(target_platform=None):
     if ffmpeg_size < 1024 * 1024:  # Less than 1 MB is suspicious
         print(f"WARNING: ffmpeg file seems too small ({ffmpeg_size} bytes)")
 
+    # Additional validation for Windows
+    if target_platform == "windows" and ffmpeg_size < 50 * 1024 * 1024:
+        print(f"ERROR: Windows ffmpeg should be at least 50 MB, but is only {ffmpeg_size / 1024 / 1024:.2f} MB")
+        print("This indicates ffmpeg download may have failed.")
+        print("Please run: python download_ffmpeg.py --platform windows")
+        sys.exit(1)
+
     # Clean build/dist in src-python
     shutil.rmtree(script_dir / "build", ignore_errors=True)
     shutil.rmtree(script_dir / "dist", ignore_errors=True)
@@ -179,12 +186,20 @@ def build_sidecar(target_platform=None):
     # Run PyInstaller WITHOUT capturing output - let it display directly
     # This way we can see the real error
     try:
+        print("Starting PyInstaller build...")
         subprocess.run(args, cwd=script_dir, check=True)
         print("="*60)
         print("PyInstaller completed successfully!")
     except subprocess.CalledProcessError as e:
         print("="*60)
         print(f"\nERROR: PyInstaller failed with exit code {e.returncode}")
+        print("\nDebugging information:")
+        print(f"  Working directory: {script_dir}")
+        print(f"  ffmpeg path: {ffmpeg_abs_path}")
+        print(f"  ffmpeg exists: {os.path.exists(ffmpeg_abs_path)}")
+        if os.path.exists(ffmpeg_abs_path):
+            print(f"  ffmpeg size: {os.path.getsize(ffmpeg_abs_path):,} bytes")
+        print(f"  Command: {' '.join(args)}")
         sys.exit(1)
 
     # Check if .spec file was generated and examine it
@@ -240,12 +255,33 @@ def build_sidecar(target_platform=None):
         st = os.stat(dest_binary)
         os.chmod(dest_binary, st.st_mode | 0o111)
 
-    # Try to verify ffmpeg was included in the bundle (optional check)
+    # Try to verify ffmpeg was included in the bundle
+    print("\nVerifying binary packaging...")
+
     if target_platform == "windows":
-        print("\nVerifying Windows binary packaging...")
-        # For Windows, we can't easily check without running, so just document
-        print("Note: Run the binary and check stderr logs for ffmpeg detection")
-        print("Expected log: '[ffmpeg] OK Found bundled ffmpeg.exe'")
+        print("Note: For Windows, ffmpeg bundling can be verified by:")
+        print("  1. Binary size should be ~150 MB (includes ~100 MB ffmpeg)")
+        print("  2. Run the binary and check stderr logs")
+        print("  Expected log: '[ffmpeg] OK Found bundled ffmpeg.exe'")
+
+        # Additional check: Try to list contents using PyInstaller's archive viewer
+        try:
+            print("\nAttempting to verify ffmpeg in archive...")
+            archive_check = subprocess.run(
+                ["pyi-archive_viewer", str(dest_binary)],
+                input="x\n",  # 'x' command lists contents
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if "ffmpeg.exe" in archive_check.stdout or "ffmpeg.exe" in archive_check.stderr:
+                print("✓ SUCCESS: ffmpeg.exe found in PyInstaller archive")
+            else:
+                print("⚠ WARNING: Could not confirm ffmpeg.exe in archive")
+                print("  This may be a false negative if pyi-archive_viewer is not available")
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+            print(f"  Archive viewer not available or failed: {e}")
+            print("  This is OK - verification will happen at runtime")
 
     print("\n" + "="*60)
     print("BUILD COMPLETE!")

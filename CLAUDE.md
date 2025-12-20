@@ -219,3 +219,44 @@ The application has been tested on:
 - macOS (Apple Silicon & Intel) ✅
 - Windows 10/11 ✅
 - Linux (limited testing) ⚠️
+
+## Windows-Specific Debugging
+
+### Build Verification Tool
+
+Use the PowerShell test script to verify Windows builds:
+```powershell
+# Quick check (ffmpeg only)
+.\test_windows_build.ps1 -QuickCheck
+
+# Full verification
+.\test_windows_build.ps1 -FullBuild
+```
+
+### Common Windows Build Issues
+
+**Issue**: Sidecar binary too small (~50 MB instead of ~150 MB)
+- **Cause**: ffmpeg not bundled by PyInstaller
+- **Symptoms**: `[ffmpeg] NOT FOUND` in runtime logs, video downloads fail
+- **Solution**: See `WINDOWS_DEBUG_GUIDE.md` for detailed troubleshooting steps
+
+**Issue**: PyInstaller errors not visible
+- **Status**: ✅ Fixed in commit fd91aad
+- **Fix**: Removed output capture, errors now display directly
+
+**Issue**: ffmpeg download fails in GitHub Actions
+- **Check**: Verify `.github/workflows/release.yml` step "Download and cache ffmpeg (Windows)"
+- **Solution**: Logs should show ffmpeg.exe ~100 MB
+
+### Key Build Indicators
+
+When building succeeds on Windows, you should see:
+1. `ffmpeg.exe` download: ~100 MB
+2. PyInstaller completes without errors
+3. `.spec` file contains `ffmpeg.exe` in binaries list
+4. Final sidecar binary: ~150 MB (not ~50 MB)
+5. Runtime log: `[ffmpeg] OK Found bundled ffmpeg.exe`
+
+For detailed Windows debugging information, see:
+- `WINDOWS_DEBUG_GUIDE.md` - Step-by-step troubleshooting
+- `test_windows_build.ps1` - Automated verification script
