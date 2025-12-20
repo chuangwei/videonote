@@ -143,9 +143,11 @@ jobs:
             Write-Error "Sidecar binary is too small ($binarySize MB), expected at least 100 MB. ffmpeg may not be bundled."
             Write-Host "`nThis indicates PyInstaller did not include ffmpeg in the bundle."
             Write-Host "Possible causes:"
-            Write-Host "  1. --add-binary argument not properly formatted"
-            Write-Host "  2. Path contains special characters that broke parsing"
-            Write-Host "  3. PyInstaller version incompatibility"
+            Write-Host "  1. UPX compression issue (should be disabled with --noupx)"
+            Write-Host "  2. --add-binary argument not properly formatted"
+            Write-Host "  3. Path contains special characters that broke parsing"
+            Write-Host "  4. PyInstaller version incompatibility"
+            Write-Host "`nNote: The build script now uses --noupx to avoid UPX skipping large files."
             exit 1
           }
           Write-Host "Windows sidecar binary created and verified successfully"

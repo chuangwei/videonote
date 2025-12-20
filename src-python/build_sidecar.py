@@ -159,6 +159,7 @@ def build_sidecar(target_platform=None):
         "--name", binary_name,
         "--clean",
         "--noconfirm",
+        "--noupx",  # CRITICAL: Disable UPX - it may skip large binaries like ffmpeg
         "--add-binary", f"{ffmpeg_abs_path}{separator}.",
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
@@ -242,10 +243,36 @@ def build_sidecar(target_platform=None):
     source_size = source_binary.stat().st_size
     print(f"\nBuilt binary size: {source_size:,} bytes ({source_size / 1024 / 1024:.2f} MB)")
 
-    # Sanity check: binary should be reasonably sized (at least 10 MB)
-    if source_size < 10 * 1024 * 1024:
-        print(f"WARNING: Binary seems too small ({source_size / 1024 / 1024:.2f} MB)")
-        print("This might indicate ffmpeg or other dependencies were not bundled correctly")
+    # CRITICAL: Verify binary size includes ffmpeg
+    # Expected size: Python (~30MB) + ffmpeg (~80MB) + dependencies (~20MB) = ~130MB minimum
+    expected_min_size = ffmpeg_size + (30 * 1024 * 1024)  # ffmpeg + Python runtime
+
+    print(f"\nSize verification:")
+    print(f"  ffmpeg source: {ffmpeg_size / 1024 / 1024:.2f} MB")
+    print(f"  Expected minimum binary: {expected_min_size / 1024 / 1024:.2f} MB")
+    print(f"  Actual binary: {source_size / 1024 / 1024:.2f} MB")
+
+    if source_size < expected_min_size:
+        print(f"\n{'='*60}")
+        print("ERROR: Binary is too small - ffmpeg was NOT bundled!")
+        print(f"{'='*60}")
+        print(f"Expected at least: {expected_min_size / 1024 / 1024:.2f} MB")
+        print(f"Got: {source_size / 1024 / 1024:.2f} MB")
+        print(f"Missing: {(expected_min_size - source_size) / 1024 / 1024:.2f} MB")
+        print("\nThis indicates PyInstaller failed to include ffmpeg.exe")
+        print("despite having it in the --add-binary argument.")
+        print("\nPossible causes:")
+        print("  1. UPX compression issue (now disabled with --noupx)")
+        print("  2. PyInstaller bug with large binaries on Windows")
+        print("  3. Path encoding issues")
+        print("\nTroubleshooting:")
+        print("  - Check if .spec file lists ffmpeg in binaries")
+        print("  - Try manual .spec file editing (see WINDOWS_DEBUG_GUIDE.md)")
+        print("  - Check PyInstaller warnings in build output")
+        print(f"{'='*60}")
+        sys.exit(1)
+    else:
+        print(f"✓ Binary size OK - ffmpeg appears to be bundled")
 
     print(f"\nCopying {source_binary} to {dest_binary}...")
     shutil.copy2(source_binary, dest_binary)
