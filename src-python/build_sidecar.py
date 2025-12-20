@@ -287,7 +287,7 @@ def build_sidecar(target_platform=None):
         print(f"  Source: {ffmpeg_size:,} bytes")
         print(f"  Destination: {ffmpeg_dest_size:,} bytes")
     else:
-        print(f"  ✓ File size verified OK")
+        print(f"  OK: File size verified")
 
     # On Unix, ensure executable
     if platform.system().lower() != "windows":
@@ -298,7 +298,7 @@ def build_sidecar(target_platform=None):
     if platform.system().lower() != "windows":
         st = os.stat(ffmpeg_dest)
         os.chmod(ffmpeg_dest, st.st_mode | 0o111)
-        print(f"  ✓ Set executable permissions on ffmpeg")
+        print(f"  OK: Set executable permissions on ffmpeg")
 
     print("\n" + "="*60)
     print("BUILD COMPLETE!")

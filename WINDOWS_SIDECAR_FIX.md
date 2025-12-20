@@ -58,3 +58,4 @@ let sidecar_command = shell.sidecar("binaries/vn-sidecar")
 
 
 
+
