@@ -153,14 +153,23 @@ def build_sidecar(target_platform=None):
     # No .spec file complications
     print("Using PyInstaller command-line mode (most reliable)")
 
+    # WORKAROUND: PyInstaller's --add-binary doesn't work reliably with large files (>50MB)
+    # We'll bundle ffmpeg separately instead of using --add-binary
+    print("\n" + "="*60)
+    print("IMPORTANT: Using workaround for large binary bundling")
+    print("="*60)
+    print("PyInstaller's --add-binary has known issues with files >50MB")
+    print("Solution: Bundle ffmpeg.exe separately next to the main EXE")
+    print("="*60 + "\n")
+
     args = [
         "pyinstaller",
         "--onefile",
         "--name", binary_name,
         "--clean",
         "--noconfirm",
-        "--noupx",  # CRITICAL: Disable UPX - it may skip large binaries like ffmpeg
-        "--add-binary", f"{ffmpeg_abs_path}{separator}.",
+        "--noupx",  # Disable UPX compression
+        # NOT using --add-binary for ffmpeg due to PyInstaller limitations
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
         "--hidden-import=uvicorn.loops.auto",
@@ -243,83 +252,71 @@ def build_sidecar(target_platform=None):
     source_size = source_binary.stat().st_size
     print(f"\nBuilt binary size: {source_size:,} bytes ({source_size / 1024 / 1024:.2f} MB)")
 
-    # CRITICAL: Verify binary size includes ffmpeg
-    # Expected size: Python (~30MB) + ffmpeg (~80MB) + dependencies (~20MB) = ~130MB minimum
-    expected_min_size = ffmpeg_size + (30 * 1024 * 1024)  # ffmpeg + Python runtime
+    # Since we're NOT using --add-binary (doesn't work for large files),
+    # we expect a smaller binary (just Python + dependencies, no ffmpeg)
+    print(f"\nNote: ffmpeg is bundled separately (PyInstaller limitation workaround)")
 
-    print(f"\nSize verification:")
-    print(f"  ffmpeg source: {ffmpeg_size / 1024 / 1024:.2f} MB")
-    print(f"  Expected minimum binary: {expected_min_size / 1024 / 1024:.2f} MB")
-    print(f"  Actual binary: {source_size / 1024 / 1024:.2f} MB")
-
-    if source_size < expected_min_size:
-        print(f"\n{'='*60}")
-        print("ERROR: Binary is too small - ffmpeg was NOT bundled!")
-        print(f"{'='*60}")
-        print(f"Expected at least: {expected_min_size / 1024 / 1024:.2f} MB")
-        print(f"Got: {source_size / 1024 / 1024:.2f} MB")
-        print(f"Missing: {(expected_min_size - source_size) / 1024 / 1024:.2f} MB")
-        print("\nThis indicates PyInstaller failed to include ffmpeg.exe")
-        print("despite having it in the --add-binary argument.")
-        print("\nPossible causes:")
-        print("  1. UPX compression issue (now disabled with --noupx)")
-        print("  2. PyInstaller bug with large binaries on Windows")
-        print("  3. Path encoding issues")
-        print("\nTroubleshooting:")
-        print("  - Check if .spec file lists ffmpeg in binaries")
-        print("  - Try manual .spec file editing (see WINDOWS_DEBUG_GUIDE.md)")
-        print("  - Check PyInstaller warnings in build output")
-        print(f"{'='*60}")
-        sys.exit(1)
-    else:
-        print(f"✓ Binary size OK - ffmpeg appears to be bundled")
-
-    print(f"\nCopying {source_binary} to {dest_binary}...")
+    print(f"\nCopying Python sidecar {source_binary} to {dest_binary}...")
     shutil.copy2(source_binary, dest_binary)
+
+    # CRITICAL: Copy ffmpeg.exe separately next to the sidecar binary
+    # This is the workaround for PyInstaller's --add-binary failure with large files
+    print(f"\nCopying ffmpeg.exe separately (workaround for PyInstaller limitation)...")
+
+    if target_platform == "windows":
+        ffmpeg_dest = output_dir / "ffmpeg.exe"
+    else:
+        ffmpeg_dest = output_dir / "ffmpeg"
+
+    print(f"  Source: {ffmpeg_path}")
+    print(f"  Destination: {ffmpeg_dest}")
+
+    shutil.copy2(ffmpeg_path, ffmpeg_dest)
+
+    # Verify ffmpeg was copied
+    if not ffmpeg_dest.exists():
+        print(f"\nERROR: Failed to copy ffmpeg to {ffmpeg_dest}")
+        sys.exit(1)
+
+    ffmpeg_dest_size = ffmpeg_dest.stat().st_size
+    print(f"  Copied successfully: {ffmpeg_dest_size:,} bytes ({ffmpeg_dest_size / 1024 / 1024:.2f} MB)")
+
+    # Verify sizes match
+    if ffmpeg_dest_size != ffmpeg_size:
+        print(f"\nWARNING: ffmpeg file size mismatch!")
+        print(f"  Source: {ffmpeg_size:,} bytes")
+        print(f"  Destination: {ffmpeg_dest_size:,} bytes")
+    else:
+        print(f"  ✓ File size verified OK")
 
     # On Unix, ensure executable
     if platform.system().lower() != "windows":
         st = os.stat(dest_binary)
         os.chmod(dest_binary, st.st_mode | 0o111)
 
-    # Try to verify ffmpeg was included in the bundle
-    print("\nVerifying binary packaging...")
-
-    if target_platform == "windows":
-        print("Note: For Windows, ffmpeg bundling can be verified by:")
-        print("  1. Binary size should be ~150 MB (includes ~100 MB ffmpeg)")
-        print("  2. Run the binary and check stderr logs")
-        print("  Expected log: '[ffmpeg] OK Found bundled ffmpeg.exe'")
-
-        # Additional check: Try to list contents using PyInstaller's archive viewer
-        try:
-            print("\nAttempting to verify ffmpeg in archive...")
-            archive_check = subprocess.run(
-                ["pyi-archive_viewer", str(dest_binary)],
-                input="x\n",  # 'x' command lists contents
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if "ffmpeg.exe" in archive_check.stdout or "ffmpeg.exe" in archive_check.stderr:
-                print("✓ SUCCESS: ffmpeg.exe found in PyInstaller archive")
-            else:
-                print("⚠ WARNING: Could not confirm ffmpeg.exe in archive")
-                print("  This may be a false negative if pyi-archive_viewer is not available")
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
-            print(f"  Archive viewer not available or failed: {e}")
-            print("  This is OK - verification will happen at runtime")
+    # Set executable permissions on ffmpeg (Unix only)
+    if platform.system().lower() != "windows":
+        st = os.stat(ffmpeg_dest)
+        os.chmod(ffmpeg_dest, st.st_mode | 0o111)
+        print(f"  ✓ Set executable permissions on ffmpeg")
 
     print("\n" + "="*60)
     print("BUILD COMPLETE!")
     print("="*60)
-    print(f"Sidecar location: {dest_binary}")
-    print(f"Sidecar size: {dest_binary.stat().st_size / 1024 / 1024:.2f} MB")
-    print(f"ffmpeg bundled from: {ffmpeg_path}")
-    print(f"ffmpeg size: {ffmpeg_size / 1024 / 1024:.2f} MB")
-    print("\nTo verify ffmpeg was bundled correctly:")
-    print("  Run the sidecar and check logs for:")
-    print("  '[ffmpeg] OK Found bundled ffmpeg'")
+    print(f"\nBuild output:")
+    print(f"  Sidecar: {dest_binary}")
+    print(f"  Sidecar size: {dest_binary.stat().st_size / 1024 / 1024:.2f} MB")
+    print(f"  ffmpeg: {ffmpeg_dest}")
+    print(f"  ffmpeg size: {ffmpeg_dest.stat().st_size / 1024 / 1024:.2f} MB")
+    print(f"\nDeployment:")
+    print(f"  Both files must be in the same directory:")
+    print(f"  - {binary_name}")
+    print(f"  - ffmpeg{'exe' if target_platform == 'windows' else ''}")
+    print(f"\nNote: This is a workaround for PyInstaller's limitation with large binaries.")
+    print(f"      ffmpeg is bundled separately instead of inside the EXE.")
+    print(f"\nTo verify at runtime:")
+    print(f"  Run the sidecar and check logs for:")
+    print(f"  '[ffmpeg] OK Found ffmpeg.exe next to executable'")
     print("="*60)
 
 if __name__ == "__main__":

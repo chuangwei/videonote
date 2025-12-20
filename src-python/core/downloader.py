@@ -43,14 +43,34 @@ class VideoDownloader:
 
     def _find_ffmpeg(self) -> Optional[str]:
         """
-        Find ffmpeg in system PATH or PyInstaller temporary directory.
+        Find ffmpeg in system PATH or next to the executable.
 
         Returns:
             Path to ffmpeg or None if not found.
         """
         print(f"[ffmpeg] Platform: {sys.platform}", file=sys.stderr)
 
-        # Check PyInstaller temporary directory first (if bundled)
+        # Method 1: Check next to the executable (NEW - for standalone bundling)
+        # This is the workaround for PyInstaller's --add-binary limitation
+        exe_dir = Path(sys.executable).parent
+        print(f"[ffmpeg] Checking next to executable: {exe_dir}", file=sys.stderr)
+
+        if sys.platform.startswith('win'):
+            ffmpeg_exe = exe_dir / "ffmpeg.exe"
+            if ffmpeg_exe.exists():
+                print(f"[ffmpeg] OK Found ffmpeg.exe next to executable: {ffmpeg_exe}", file=sys.stderr)
+                return str(ffmpeg_exe)
+            else:
+                print(f"[ffmpeg] Not found at: {ffmpeg_exe}", file=sys.stderr)
+        else:
+            ffmpeg_exe = exe_dir / "ffmpeg"
+            if ffmpeg_exe.exists():
+                print(f"[ffmpeg] OK Found ffmpeg next to executable: {ffmpeg_exe}", file=sys.stderr)
+                return str(ffmpeg_exe)
+            else:
+                print(f"[ffmpeg] Not found at: {ffmpeg_exe}", file=sys.stderr)
+
+        # Method 2: Check PyInstaller temporary directory (OLD method, kept for compatibility)
         if hasattr(sys, '_MEIPASS'):
             print(f"[ffmpeg] Running from PyInstaller bundle: {sys._MEIPASS}", file=sys.stderr)
 
@@ -61,30 +81,30 @@ class VideoDownloader:
                 # Show ffmpeg-related files
                 ffmpeg_files = [f for f in meipass_files if 'ffmpeg' in f.lower()]
                 if ffmpeg_files:
-                    print(f"[ffmpeg] Found ffmpeg-related files: {ffmpeg_files}", file=sys.stderr)
+                    print(f"[ffmpeg] Found ffmpeg-related files in _MEIPASS: {ffmpeg_files}", file=sys.stderr)
             except Exception as e:
                 print(f"[ffmpeg] Could not list _MEIPASS: {e}", file=sys.stderr)
 
-            # Windows: check for ffmpeg.exe
+            # Windows: check for ffmpeg.exe in _MEIPASS
             if sys.platform.startswith('win'):
                 ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg.exe")
-                print(f"[ffmpeg] Checking for bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                print(f"[ffmpeg] Checking _MEIPASS: {ffmpeg_path}", file=sys.stderr)
                 if os.path.exists(ffmpeg_path):
-                    print("[ffmpeg] OK Found bundled ffmpeg.exe", file=sys.stderr)
+                    print("[ffmpeg] OK Found bundled ffmpeg.exe in _MEIPASS", file=sys.stderr)
                     return ffmpeg_path
                 else:
-                    print("[ffmpeg] NOT FOUND: Bundled ffmpeg.exe not found", file=sys.stderr)
+                    print("[ffmpeg] NOT FOUND in _MEIPASS", file=sys.stderr)
             else:
-                # macOS/Linux: check for ffmpeg (no extension)
+                # macOS/Linux: check for ffmpeg (no extension) in _MEIPASS
                 ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg")
-                print(f"[ffmpeg] Checking for bundled ffmpeg at: {ffmpeg_path}", file=sys.stderr)
+                print(f"[ffmpeg] Checking _MEIPASS: {ffmpeg_path}", file=sys.stderr)
                 if os.path.exists(ffmpeg_path):
-                    print("[ffmpeg] OK Found bundled ffmpeg", file=sys.stderr)
+                    print("[ffmpeg] OK Found bundled ffmpeg in _MEIPASS", file=sys.stderr)
                     return ffmpeg_path
                 else:
-                    print("[ffmpeg] NOT FOUND: Bundled ffmpeg not found", file=sys.stderr)
+                    print("[ffmpeg] NOT FOUND in _MEIPASS", file=sys.stderr)
 
-        # Check system PATH as fallback
+        # Method 3: Check system PATH as final fallback
         print("[ffmpeg] Checking system PATH...", file=sys.stderr)
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
