@@ -1,26 +1,14 @@
 """
 VideoNote Python Sidecar - FastAPI Backend
 This service handles video processing tasks including downloading and analysis.
+macOS only.
 """
 
 import sys
 import socket
-import io
 import os
 from contextlib import asynccontextmanager
 from typing import Dict, Optional
-
-# Fix for Windows output buffering/encoding issues
-if sys.platform.startswith('win'):
-    # Force utf-8 encoding for stdout/stderr to avoid cp1252 encoding issues
-    if sys.stdout:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
-    if sys.stderr:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
-
-    # Disable Windows-specific output buffering
-    os.environ['PYTHONUNBUFFERED'] = '1'
-
 
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks, HTTPException
@@ -304,16 +292,14 @@ def main():
 
         def wait_and_announce():
             """Wait for server to be ready, then announce the port."""
-            # Wait a bit longer on Windows for uvicorn to fully initialize
-            wait_time = 3.0 if sys.platform.startswith('win') else 1.5
+            wait_time = 1.5
             print(f"[INFO] Waiting {wait_time}s for server initialization...", file=sys.stderr, flush=True)
             time.sleep(wait_time)
 
             # Try to connect to verify server is ready
-            max_attempts = 20  # More attempts for Windows
+            max_attempts = 20
             for attempt in range(max_attempts):
                 try:
-                    # Explicitly use IPv4 socket
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         s.settimeout(2)
                         result = s.connect_ex(('127.0.0.1', port))
@@ -322,14 +308,8 @@ def main():
                             print(f"[INFO] Server is ready on port {port}", file=sys.stderr, flush=True)
 
                             # Print the port to stdout so Tauri can capture it
-                            # CRITICAL: This must be on its own line and immediately flushed
                             print(f"SERVER_PORT={port}", flush=True)
-
-                            # Triple flush for Windows reliability
                             sys.stdout.flush()
-                            if sys.platform.startswith('win'):
-                                sys.stdout.flush()
-                                sys.stdout.flush()
 
                             server_ready.set()
                             print(f"[INFO] Port announcement complete", file=sys.stderr, flush=True)

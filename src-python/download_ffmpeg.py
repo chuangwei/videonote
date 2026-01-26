@@ -1,35 +1,13 @@
 """
 Auto-download ffmpeg binary files for packaging
-Supports Windows, macOS, Linux
+macOS only - uses Homebrew-installed ffmpeg
 """
 
 import os
 import sys
 import platform
-import urllib.request
-import zipfile
-import tarfile
 import shutil
 from pathlib import Path
-
-
-FFMPEG_VERSIONS = {
-    "windows": {
-        # Using GitHub releases for more reliable downloads
-        # This is ffmpeg 7.0.2 essentials build
-        "url": "https://github.com/GyanD/codexffmpeg/releases/download/7.0.2/ffmpeg-7.0.2-essentials_build.zip",
-        "executable": "ffmpeg.exe",
-    },
-    "darwin": {
-        # For macOS, we use system-installed ffmpeg
-        "url": None,
-        "executable": "ffmpeg",
-    },
-    "linux": {
-        "url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
-        "executable": "ffmpeg",
-    }
-}
 
 
 def get_platform_key():
@@ -37,192 +15,65 @@ def get_platform_key():
     system = platform.system().lower()
     if system == "darwin":
         return "darwin"
-    elif system == "linux":
-        return "linux"
-    elif system == "windows":
-        return "windows"
     else:
-        raise Exception(f"Unsupported platform: {system}")
+        raise Exception(f"Unsupported platform: {system}. This application only supports macOS.")
 
 
-def download_file(url, dest_path):
-    """Download file and show progress"""
-    print(f"Downloading: {url}")
-
-    def reporthook(block_num, block_size, total_size):
-        downloaded = block_num * block_size
-        if total_size > 0:
-            percent = min(downloaded * 100.0 / total_size, 100)
-            sys.stdout.write(f"\rProgress: {percent:.1f}% ({downloaded}/{total_size} bytes)")
-            sys.stdout.flush()
-
-    try:
-        urllib.request.urlretrieve(url, dest_path, reporthook)
-        print("\nDownload complete!")
-
-        # Verify downloaded file exists and has reasonable size
-        if not os.path.exists(dest_path):
-            raise Exception(f"Downloaded file not found: {dest_path}")
-
-        file_size = os.path.getsize(dest_path)
-        print(f"Downloaded file size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
-
-        if file_size < 1024 * 1024:  # Less than 1 MB
-            raise Exception(f"Downloaded file is suspiciously small: {file_size} bytes")
-
-    except urllib.error.HTTPError as e:
-        raise Exception(f"HTTP Error {e.code}: {e.reason}. URL: {url}")
-    except urllib.error.URLError as e:
-        raise Exception(f"URL Error: {e.reason}. URL: {url}")
-    except Exception as e:
-        raise Exception(f"Download failed: {str(e)}")
-
-
-def extract_zip(zip_path, extract_to):
-    """Extract ZIP file"""
-    print(f"Extracting: {zip_path}")
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(extract_to)
-    print("Extraction complete!")
-
-
-def extract_tar(tar_path, extract_to):
-    """Extract TAR file"""
-    print(f"Extracting: {tar_path}")
-    with tarfile.open(tar_path, 'r:*') as tar_ref:
-        tar_ref.extractall(extract_to)
-    print("Extraction complete!")
-
-
-def find_ffmpeg_in_directory(directory, executable_name):
-    """Recursively find ffmpeg executable in directory"""
-    for root, dirs, files in os.walk(directory):
-        if executable_name in files:
-            return os.path.join(root, executable_name)
-    return None
-
-
-def download_ffmpeg_for_platform(platform_key, cache_dir):
+def get_ffmpeg_from_homebrew(cache_dir):
     """
-    Download ffmpeg for specified platform
-    
+    Get ffmpeg from Homebrew installation
+
     Args:
-        platform_key: Platform identifier (windows/darwin/linux)
-        cache_dir: Cache directory
-    
+        cache_dir: Cache directory for ffmpeg binary
+
     Returns:
         Path to ffmpeg executable
     """
-    config = FFMPEG_VERSIONS.get(platform_key)
-    if not config:
-        raise Exception(f"Unsupported platform: {platform_key}")
-    
-    executable_name = config["executable"]
-    
-    # Check if already downloaded
+    executable_name = "ffmpeg"
+
+    # Check if already cached
     cached_ffmpeg = cache_dir / executable_name
     if cached_ffmpeg.exists():
         print(f"Using cached ffmpeg: {cached_ffmpeg}")
         return str(cached_ffmpeg)
-    
-    # For macOS, try to use system-installed ffmpeg
-    if platform_key == "darwin":
-        system_ffmpeg = shutil.which("ffmpeg")
-        if system_ffmpeg:
-            print(f"Using system ffmpeg: {system_ffmpeg}")
-            # Copy to cache directory
-            shutil.copy2(system_ffmpeg, cached_ffmpeg)
-            return str(cached_ffmpeg)
-        else:
-            raise Exception("ffmpeg not found on macOS, please install with 'brew install ffmpeg'")
-    
-    url = config.get("url")
-    if not url:
-        raise Exception(f"Platform {platform_key} has no download URL configured")
-    
-    # Create temporary download directory
-    download_dir = cache_dir / "temp_download"
-    download_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Determine file extension
-    if url.endswith('.zip'):
-        archive_path = download_dir / "ffmpeg.zip"
-        extract_func = extract_zip
-    elif url.endswith('.tar.xz') or url.endswith('.tar.gz'):
-        archive_path = download_dir / "ffmpeg.tar.xz"
-        extract_func = extract_tar
-    else:
-        raise Exception(f"Unsupported archive format: {url}")
-    
-    try:
-        # Download archive file
-        download_file(url, archive_path)
-        
-        # Extract
-        extract_to = download_dir / "extracted"
-        extract_to.mkdir(exist_ok=True)
-        extract_func(archive_path, extract_to)
-        
-        # Find ffmpeg executable
-        ffmpeg_path = find_ffmpeg_in_directory(extract_to, executable_name)
-        if not ffmpeg_path:
-            raise Exception(f"{executable_name} not found in extracted files")
-        
-        print(f"Found ffmpeg: {ffmpeg_path}")
-        
+
+    # Try to use system-installed ffmpeg
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg:
+        print(f"Using system ffmpeg: {system_ffmpeg}")
         # Copy to cache directory
-        print(f"Copying ffmpeg from {ffmpeg_path} to {cached_ffmpeg}")
-        shutil.copy2(ffmpeg_path, cached_ffmpeg)
-
-        # Set executable permissions on Unix systems
-        if platform_key != "windows":
-            os.chmod(cached_ffmpeg, 0o755)
-
-        # Verify the copied file
-        if not cached_ffmpeg.exists():
-            raise Exception(f"Failed to copy ffmpeg to {cached_ffmpeg}")
-
-        file_size = cached_ffmpeg.stat().st_size
-        print(f"OK ffmpeg saved to: {cached_ffmpeg}")
-        print(f"OK File size: {file_size:,} bytes ({file_size / 1024 / 1024:.2f} MB)")
-
-        # Sanity check: ffmpeg should be at least 50 MB
-        min_size = 50 * 1024 * 1024
-        if file_size < min_size:
-            raise Exception(f"ffmpeg file seems too small ({file_size / 1024 / 1024:.2f} MB), expected at least {min_size / 1024 / 1024:.0f} MB")
-
+        shutil.copy2(system_ffmpeg, cached_ffmpeg)
+        # Set executable permissions
+        os.chmod(cached_ffmpeg, 0o755)
         return str(cached_ffmpeg)
-        
-    finally:
-        # Clean up temporary files
-        if download_dir.exists():
-            shutil.rmtree(download_dir)
+    else:
+        raise Exception("ffmpeg not found on macOS. Please install with 'brew install ffmpeg'")
 
 
 def get_ffmpeg_path(target_platform=None):
     """
-    Get ffmpeg path, auto-download if not exists
-    
+    Get ffmpeg path from Homebrew installation
+
     Args:
-        target_platform: Target platform (windows/darwin/linux), uses current platform if None
-    
+        target_platform: Ignored (kept for compatibility). Only macOS is supported.
+
     Returns:
         Path to ffmpeg executable
     """
-    if target_platform is None:
-        target_platform = get_platform_key()
-    
+    # Verify we're on macOS
+    platform_key = get_platform_key()
+
     # Create cache directory
     script_dir = Path(__file__).parent
-    cache_dir = script_dir / ".ffmpeg_cache" / target_platform
+    cache_dir = script_dir / ".ffmpeg_cache" / "darwin"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    
+
     print(f"\n{'='*50}")
-    print(f"Getting ffmpeg for platform: {target_platform}")
+    print(f"Getting ffmpeg for macOS")
     print(f"{'='*50}")
-    
+
     try:
-        ffmpeg_path = download_ffmpeg_for_platform(target_platform, cache_dir)
+        ffmpeg_path = get_ffmpeg_from_homebrew(cache_dir)
         print(f"\nffmpeg ready: {ffmpeg_path}")
         return ffmpeg_path
     except Exception as e:
@@ -231,18 +82,8 @@ def get_ffmpeg_path(target_platform=None):
 
 
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Download ffmpeg binary")
-    parser.add_argument(
-        "--platform",
-        choices=["windows", "darwin", "linux"],
-        help="Target platform (defaults to current platform)"
-    )
-    args = parser.parse_args()
-    
     try:
-        ffmpeg_path = get_ffmpeg_path(args.platform)
+        ffmpeg_path = get_ffmpeg_path()
         print(f"\nSuccess! ffmpeg path: {ffmpeg_path}")
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

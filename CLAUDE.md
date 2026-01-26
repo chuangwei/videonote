@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VideoNote is a cross-platform desktop application for video note-taking built with:
+VideoNote is a macOS desktop application for video note-taking built with:
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS + Shadcn/UI
 - **Desktop Framework**: Tauri v2 (Rust)
 - **Backend Sidecar**: Python 3 + FastAPI + Uvicorn
@@ -21,13 +21,12 @@ cd src-python && ./run.sh  # Manually start Python sidecar for debugging
 
 ### Building
 ```bash
-# Build Python sidecar with automatic ffmpeg download
+# Build Python sidecar (requires Homebrew ffmpeg)
 cd src-python
-python build_sidecar.py              # Current platform
-python build_sidecar.py --platform windows  # Cross-platform build
+python build_sidecar.py
 
 # Build Tauri application
-npm run tauri:build        # Creates installer in src-tauri/target/release/bundle/
+npm run tauri:build        # Creates DMG and .app in src-tauri/target/release/bundle/
 ```
 
 ### Testing
@@ -82,18 +81,14 @@ This is **critical** to understand:
 
 ### FFmpeg Handling
 
-- `download_ffmpeg.py`: Auto-downloads platform-specific ffmpeg binaries
-  - Windows: Downloads from GitHub releases (~100 MB)
-  - macOS: Uses Homebrew-installed ffmpeg
-  - Cached in `src-python/.ffmpeg_cache/{platform}/`
+- `download_ffmpeg.py`: Gets ffmpeg from Homebrew installation
+  - Uses system-installed ffmpeg via `brew install ffmpeg`
+  - Cached in `src-python/.ffmpeg_cache/darwin/`
 - `build_sidecar.py`: Bundles ffmpeg into PyInstaller binary via `--add-binary`
-  - Verifies ffmpeg file size (should be ~100 MB for Windows)
-  - Final sidecar should be ~150 MB on Windows (includes Python + yt-dlp + ffmpeg)
+  - Final sidecar includes Python + yt-dlp + ffmpeg
 - `core/downloader.py`: Auto-detects ffmpeg from PyInstaller bundle (`sys._MEIPASS`) or system PATH
   - **Fallback strategy**: If ffmpeg not found, downloads pre-merged formats only (lower quality but won't fail)
   - Detailed logging with `[ffmpeg]` prefix for debugging
-- Windows builds require ffmpeg.exe bundled due to lack of system ffmpeg
-- **IMPORTANT**: PyInstaller does NOT support cross-compilation - Windows sidecar must be built on Windows
 
 ## Key Development Patterns
 
@@ -117,21 +112,11 @@ This is **critical** to understand:
 - **externalBin**: `binaries/vn-sidecar` (auto-suffixed with target triple by Tauri)
 - **Shell plugin scope**: Configured for sidecar execution
 
-### Cross-Platform Considerations
+### macOS Considerations
 
-**macOS**:
-- Native ffmpeg via brew or bundled
+- Native ffmpeg via Homebrew: `brew install ffmpeg`
 - Target triples: `aarch64-apple-darwin` (Apple Silicon), `x86_64-apple-darwin` (Intel)
-
-**Windows**:
-- Must bundle ffmpeg.exe (no system PATH)
-- Use `python build_sidecar.py --platform windows` for cross-compilation prep
-- PyInstaller cross-platform limitations: best to build on Windows for Windows
-- Stdout buffering issues handled in `main.py` lines 14-22
-
-**Linux**:
-- Target triple: `x86_64-unknown-linux-gnu`
-- Less tested than macOS/Windows
+- Universal builds support both architectures
 
 ## Important Implementation Details
 
@@ -161,25 +146,20 @@ This is **critical** to understand:
 
 1. **Port not available**: Frontend shows "API connection status" indicator. Wait 10-30s for sidecar initialization.
 
-2. **PyInstaller hidden imports**: Uvicorn requires explicit `--hidden-import` flags (see `build_sidecar.py:126-135`)
+2. **PyInstaller hidden imports**: Uvicorn requires explicit `--hidden-import` flags (see `build_sidecar.py`)
 
 3. **yt-dlp updates**: Use `--collect-all=yt_dlp` to bundle all dependencies
 
 4. **Path aliases**: Ensure Vite `resolve.alias` and `tsconfig.json` paths match for `@/` imports
 
-5. **Windows buffering**: `main.py` lines 14-22 fix encoding/buffering for Windows stdout
+5. **Sidecar termination**: Tauri auto-kills sidecar on app exit
 
-6. **Sidecar termination**: Tauri auto-kills sidecar on app exit
+6. **CSP violations**: If API calls fail, check `tauri.conf.json` CSP `connect-src` includes the port range
 
-7. **CSP violations**: If API calls fail, check `tauri.conf.json` CSP `connect-src` includes the port range
-
-8. **ffmpeg not found on Windows**:
+7. **ffmpeg not found**:
    - Error: "You have requested merging of multiple formats but ffmpeg is not installed"
-   - Solution: Rebuild sidecar on Windows: `cd src-python && python build_sidecar.py`
-   - Verify: Check sidecar size is ~150 MB (not ~50 MB)
-   - Logs should show: `[ffmpeg] OK Found bundled ffmpeg.exe`
-
-9. **Cross-compilation doesn't work**: PyInstaller cannot cross-compile. Windows binaries must be built on Windows, macOS on macOS, etc. Use GitHub Actions for multi-platform builds.
+   - Solution: Install ffmpeg via Homebrew: `brew install ffmpeg`
+   - Then rebuild sidecar: `cd src-python && python build_sidecar.py`
 
 ## File Structure (Key Locations)
 
@@ -211,52 +191,17 @@ videonote/
 3. **Frontend changes**: Vite hot-reload handles automatically
 4. **Rust changes**: Tauri auto-rebuilds
 5. **Debugging Python**: Run sidecar manually with `./src-python/run.sh` and check stderr output
-6. **Debugging Tauri**: DevTools via Cmd+Shift+I (macOS) or Ctrl+Shift+I (Windows)
+6. **Debugging Tauri**: DevTools via Cmd+Shift+I
 
 ## Testing
 
-The application has been tested on:
+The application is designed for macOS:
 - macOS (Apple Silicon & Intel) ✅
-- Windows 10/11 ✅
-- Linux (limited testing) ⚠️
 
-## Windows-Specific Debugging
+### Build Verification
 
-### Build Verification Tool
-
-Use the PowerShell test script to verify Windows builds:
-```powershell
-# Quick check (ffmpeg only)
-.\test_windows_build.ps1 -QuickCheck
-
-# Full verification
-.\test_windows_build.ps1 -FullBuild
-```
-
-### Common Windows Build Issues
-
-**Issue**: Sidecar binary too small (~50 MB instead of ~150 MB)
-- **Cause**: ffmpeg not bundled by PyInstaller
-- **Symptoms**: `[ffmpeg] NOT FOUND` in runtime logs, video downloads fail
-- **Solution**: See `WINDOWS_DEBUG_GUIDE.md` for detailed troubleshooting steps
-
-**Issue**: PyInstaller errors not visible
-- **Status**: ✅ Fixed in commit fd91aad
-- **Fix**: Removed output capture, errors now display directly
-
-**Issue**: ffmpeg download fails in GitHub Actions
-- **Check**: Verify `.github/workflows/release.yml` step "Download and cache ffmpeg (Windows)"
-- **Solution**: Logs should show ffmpeg.exe ~100 MB
-
-### Key Build Indicators
-
-When building succeeds on Windows, you should see:
-1. `ffmpeg.exe` download: ~100 MB
+To verify a successful build:
+1. ffmpeg should be installed via Homebrew
 2. PyInstaller completes without errors
-3. `.spec` file contains `ffmpeg.exe` in binaries list
-4. Final sidecar binary: ~150 MB (not ~50 MB)
-5. Runtime log: `[ffmpeg] OK Found bundled ffmpeg.exe`
-
-For detailed Windows debugging information, see:
-- `WINDOWS_DEBUG_GUIDE.md` - Step-by-step troubleshooting
-- `test_windows_build.ps1` - Automated verification script
+3. Final sidecar binary located in `src-tauri/binaries/`
+4. Runtime log shows ffmpeg detected from bundle or system PATH

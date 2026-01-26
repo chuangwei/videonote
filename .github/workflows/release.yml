@@ -12,12 +12,7 @@ jobs:
   release:
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [macos-latest, windows-latest]
-    
-    runs-on: ${{ matrix.platform }}
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
@@ -31,7 +26,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -43,150 +38,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r src-python/requirements.txt
 
-      - name: Install ffmpeg (macOS)
-        if: matrix.platform == 'macos-latest'
+      - name: Install ffmpeg
         run: |
           brew install ffmpeg
 
-      - name: Download and cache ffmpeg (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
+      - name: Verify ffmpeg installation
         run: |
-          cd src-python
-          python download_ffmpeg.py --platform windows
-          # Verify ffmpeg was downloaded
-          $ffmpegPath = ".ffmpeg_cache/windows/ffmpeg.exe"
-          if (-not (Test-Path $ffmpegPath)) {
-            Write-Error "ffmpeg.exe not found in cache!"
-            exit 1
-          }
-          $ffmpegSize = (Get-Item $ffmpegPath).Length / 1MB
-          Write-Host "ffmpeg.exe size: $([math]::Round($ffmpegSize, 2)) MB"
-          if ($ffmpegSize -lt 50) {
-            Write-Error "ffmpeg.exe is too small ($ffmpegSize MB), expected at least 50 MB"
-            exit 1
-          }
-          Write-Host "ffmpeg downloaded and verified successfully"
-          cd ..
+          ffmpeg -version
 
-      - name: Install ffmpeg (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          brew install ffmpeg
-
-      - name: Verify ffmpeg installation (Unix)
-        if: matrix.platform != 'windows-latest'
-        shell: bash
-        run: |
-          ffmpeg -version || echo "ffmpeg not in PATH (will use bundled version)"
-
-      - name: Verify ffmpeg installation (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          try {
-            ffmpeg -version
-          } catch {
-            Write-Host "ffmpeg not in PATH (will use bundled version)"
-          }
-
-      - name: Build Python Sidecar (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          cd src-python
-          python build_sidecar.py
-
-          # Display the generated .spec file for debugging
-          Write-Host "`n=========================================="
-          Write-Host "Generated .spec file content:"
-          Write-Host "=========================================="
-          $specFile = "vn-sidecar-x86_64-pc-windows-msvc.exe.spec"
-          if (Test-Path $specFile) {
-            Get-Content $specFile | ForEach-Object { Write-Host $_ }
-          }
-          Write-Host "=========================================="
-
-          # Check if .spec file was created
-          Write-Host "`n=========================================="
-          Write-Host "Checking PyInstaller .spec file"
-          Write-Host "=========================================="
-          $specFile = "vn-sidecar-x86_64-pc-windows-msvc.exe.spec"
-          if (Test-Path $specFile) {
-            Write-Host "Spec file found: $specFile"
-            Write-Host "Note: ffmpeg is bundled separately (not in .spec file)"
-            Write-Host "      This is intentional due to PyInstaller limitations with large files"
-          } else {
-            Write-Error ".spec file not found!"
-            exit 1
-          }
-
-          # Verify the sidecar binary was created
-          Write-Host "`n=========================================="
-          Write-Host "Verifying Build Output"
-          Write-Host "=========================================="
-
-          $binaryPath = "../src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe"
-          $ffmpegPath = "../src-tauri/binaries/ffmpeg.exe"
-
-          # Check sidecar binary
-          if (-not (Test-Path $binaryPath)) {
-            Write-Error "Windows sidecar binary not found at: $binaryPath"
-            exit 1
-          }
-          $binarySize = (Get-Item $binaryPath).Length / 1MB
-          Write-Host "✓ Sidecar binary: $([math]::Round($binarySize, 2)) MB"
-
-          # Check ffmpeg.exe (now bundled separately)
-          if (-not (Test-Path $ffmpegPath)) {
-            Write-Error "ffmpeg.exe not found at: $ffmpegPath"
-            Write-Host "Note: ffmpeg is now bundled separately due to PyInstaller limitations"
-            exit 1
-          }
-          $ffmpegSize = (Get-Item $ffmpegPath).Length / 1MB
-          Write-Host "✓ ffmpeg.exe: $([math]::Round($ffmpegSize, 2)) MB"
-
-          # Verify ffmpeg size is reasonable (should be ~80-100 MB)
-          if ($ffmpegSize -lt 50) {
-            Write-Error "ffmpeg.exe is too small ($ffmpegSize MB), expected ~80-100 MB"
-            exit 1
-          }
-
-          Write-Host "`nBoth files verified successfully"
-          Write-Host "Note: ffmpeg.exe is bundled separately and will be deployed alongside the sidecar"
-          cd ..
-
-      - name: Build Python Sidecar (Unix)
-        if: matrix.platform != 'windows-latest'
-        shell: bash
+      - name: Build Python Sidecar
         run: |
           cd src-python
           python build_sidecar.py
           cd ..
 
       - name: Verify Sidecar Binary
-        shell: bash
         run: |
           echo "Listing src-tauri/binaries directory:"
           ls -la src-tauri/binaries/ || true
 
-          # Check for expected binary based on platform
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            EXPECTED_BINARY="src-tauri/binaries/vn-sidecar-x86_64-pc-windows-msvc.exe"
-          elif [ "${{ matrix.platform }}" == "macos-latest" ]; then
-            # macOS could be either architecture
-            if [ -f "src-tauri/binaries/vn-sidecar-aarch64-apple-darwin" ] || [ -f "src-tauri/binaries/vn-sidecar-x86_64-apple-darwin" ]; then
-              echo "macOS sidecar binary found"
-              exit 0
-            fi
-            EXPECTED_BINARY="src-tauri/binaries/vn-sidecar-*-apple-darwin"
+          # Check for macOS sidecar binary
+          if [ -f "src-tauri/binaries/vn-sidecar-aarch64-apple-darwin" ] || [ -f "src-tauri/binaries/vn-sidecar-x86_64-apple-darwin" ]; then
+            echo "macOS sidecar binary found"
           else
-            EXPECTED_BINARY="src-tauri/binaries/vn-sidecar-x86_64-unknown-linux-gnu"
-          fi
-
-          echo "Checking for binary: $EXPECTED_BINARY"
-          if [ ! -f "$EXPECTED_BINARY" ] && [ "${{ matrix.platform }}" != "macos-latest" ]; then
-            echo "ERROR: Expected sidecar binary not found: $EXPECTED_BINARY"
+            echo "ERROR: macOS sidecar binary not found"
             exit 1
           fi
 

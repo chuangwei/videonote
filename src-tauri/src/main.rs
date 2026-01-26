@@ -1,6 +1,3 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_shell::ShellExt;
@@ -23,7 +20,7 @@ fn get_sidecar_port(state: State<SidecarState>) -> Result<u16, String> {
 }
 
 // Command to open DevTools (removed - not available in Tauri 2.x)
-// Use the DevTools shortcut: Cmd+Shift+I (macOS) or Ctrl+Shift+I (Windows/Linux)
+// Use the DevTools shortcut: Cmd+Shift+I (macOS)
 
 #[tauri::command]
 async fn get_log_contents(app: tauri::AppHandle) -> Result<String, String> {
@@ -79,8 +76,7 @@ fn main() {
             let state: State<SidecarState> = handle.state();
             let port_state = state.port.clone();
 
-            // DevTools can be opened with Cmd+Shift+I (macOS) or Ctrl+Shift+I (Windows/Linux)
-            // in development mode
+            // DevTools can be opened with Cmd+Shift+I in development mode
 
             // Spawn the Python sidecar
             tauri::async_runtime::spawn(async move {
