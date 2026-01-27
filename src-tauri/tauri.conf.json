@@ -1,5 +1,5 @@
 {
-  "productName": "VideoNote",
+  "productName": "万能视频下载",
   "version": "0.1.0",
   "identifier": "com.videonote.app",
   "build": {
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "VideoNote",
+        "title": "万能视频下载",
         "width": 1200,
         "height": 800,
         "resizable": true,
