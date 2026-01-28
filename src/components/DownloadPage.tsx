@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Download, Folder, CheckCircle2, XCircle, Loader2, Video, Youtube, FileVideo, ArrowRight } from "lucide-react";
+import { Download, Folder, CheckCircle2, XCircle, Loader2, Video, Youtube, FileVideo, ArrowRight, Globe, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -214,10 +214,10 @@ export function DownloadPage() {
           <Video className="w-8 h-8 text-indigo-600 drop-shadow-md" />
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-800 drop-shadow-sm">
-          VideoNote 下载助手
+          万能视频下载助手
         </h1>
         <p className="text-slate-600 font-medium text-lg tracking-wide">
-          构建您的专属本地知识库
+          支持 YouTube、Bilibili、Twitter 等 1000+ 视频平台
         </p>
       </div>
 
@@ -252,7 +252,7 @@ export function DownloadPage() {
             )}
           </CardTitle>
           <CardDescription className="text-slate-500 px-2 text-base">
-            输入视频链接，选择保存位置，即可开始离线保存
+            支持主流视频平台，粘贴链接即可高速下载到本地
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8 p-8 pt-2">
@@ -303,13 +303,13 @@ export function DownloadPage() {
             <div className="relative transition-all duration-300 focus-within:scale-[1.01]">
               <Input
                 type="url"
-                placeholder="粘贴视频链接，例如 https://www.youtube.com/watch?v=..."
+                placeholder="粘贴任意视频平台链接，支持 YouTube、Bilibili、抖音等..."
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={!!downloadTask && downloadTask.status === "downloading"}
                 className="pl-11 h-12 rounded-2xl bg-white/50 border-white/60 focus:bg-white/80 shadow-inner backdrop-blur-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-300 transition-all text-slate-800 placeholder:text-slate-400"
               />
-              <Youtube className="w-5 h-5 text-slate-500 absolute left-4 top-3.5 transition-colors group-focus-within:text-red-500" />
+              <Globe className="w-5 h-5 text-slate-500 absolute left-4 top-3.5 transition-colors group-focus-within:text-indigo-500" />
             </div>
           </div>
 
@@ -439,31 +439,6 @@ export function DownloadPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* 底部功能特性 */}
-      <div className="relative z-10 mt-12 grid grid-cols-3 gap-6 max-w-2xl w-full text-center px-4">
-        <div className="p-4 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 cursor-default group">
-          <div className="mx-auto w-12 h-12 rounded-2xl bg-white/50 flex items-center justify-center text-blue-600 shadow-sm mb-3 group-hover:scale-110 transition-transform">
-            <Youtube className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-800 mb-1">多平台支持</h3>
-          <p className="text-xs text-slate-600">支持 YouTube 等主流平台</p>
-        </div>
-        <div className="p-4 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 cursor-default group">
-          <div className="mx-auto w-12 h-12 rounded-2xl bg-white/50 flex items-center justify-center text-purple-600 shadow-sm mb-3 group-hover:scale-110 transition-transform">
-            <FileVideo className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-800 mb-1">高清画质</h3>
-          <p className="text-xs text-slate-600">自动选择最佳分辨率</p>
-        </div>
-        <div className="p-4 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 cursor-default group">
-          <div className="mx-auto w-12 h-12 rounded-2xl bg-white/50 flex items-center justify-center text-emerald-600 shadow-sm mb-3 group-hover:scale-110 transition-transform">
-            <ArrowRight className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-800 mb-1">快速便捷</h3>
-          <p className="text-xs text-slate-600">简洁界面，一键下载</p>
-        </div>
-      </div>
     </div>
   );
 }
