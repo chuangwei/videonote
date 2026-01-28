@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Download, Folder, CheckCircle2, XCircle, Loader2, Video, Youtube, FileVideo, ArrowRight, Globe, Sparkles } from "lucide-react";
+import { Download, Folder, CheckCircle2, XCircle, Loader2, Video, Globe } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
